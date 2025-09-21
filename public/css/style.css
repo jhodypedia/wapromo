@@ -139,13 +139,91 @@ body {
   animation: fadeIn .4s ease;
 }
 
-/* TABLE */
-.table thead {
-  background: #f1f5f9;
+/* === TABLE GLOBAL === */
+.table {
+  border-collapse: separate !important;
+  border-spacing: 0 8px !important; /* jarak antar row */
 }
-.table-hover tbody tr:hover {
-  background: rgba(13,110,253,.05);
+
+.table thead th {
+  background: #f1f5f9;
+  border: none;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  font-size: .8rem;
+  padding: 12px 16px;
+}
+
+.table tbody tr {
+  background: var(--card);
+  box-shadow: var(--shadow);
+  border-radius: var(--radius);
   transition: var(--transition);
+}
+
+.table tbody tr:hover {
+  background: rgba(13, 110, 253, .04);
+  transform: translateY(-2px);
+}
+
+.table td {
+  border: none;
+  padding: 14px 16px;
+  vertical-align: middle;
+}
+
+.table td:first-child {
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
+}
+
+.table td:last-child {
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+
+/* DataTables custom */
+.dataTables_wrapper .dataTables_filter input {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: .35rem .75rem;
+  margin-left: .5rem;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.04);
+}
+
+.dataTables_wrapper .dataTables_length select {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: .35rem .75rem;
+  margin: 0 .25rem;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  border-radius: 6px;
+  border: 1px solid transparent;
+  padding: .35rem .65rem;
+  margin: 0 2px;
+  transition: var(--transition);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: var(--primary);
+  color: #fff !important;
+  border-color: var(--primary);
+  font-weight: 500;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+  background: var(--primary-600);
+  color: #fff !important;
+  border-color: var(--primary-600);
+}
+
+.dataTables_wrapper .dataTables_info {
+  font-size: .85rem;
+  color: var(--muted);
+  margin-top: .5rem;
 }
 
 /* MODALS */
