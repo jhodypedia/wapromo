@@ -16,6 +16,9 @@ import campaignRoutes from "./routes/campaign.routes.js";
 import { authRequired } from "./middlewares/auth.js";
 import { initSessions } from "./services/waService.js";
 
+// 🔹 Import models untuk statistik dashboard
+import { Session, Campaign, Template, Target } from "./models/index.js";
+
 dotenv.config();
 const app = express();
 const server = http.createServer(app);
@@ -55,13 +58,41 @@ app.use("/templates", templateRoutes);
 app.use("/campaigns", campaignRoutes);
 app.use("/generate", generateRoutes);
 
-// dashboard
-app.get("/", authRequired, (req, res) => res.render("dashboard"));
+// 🔹 dashboard dengan statistik & campaign terbaru
+app.get("/", authRequired, async (req, res) => {
+  try {
+    const stats = {
+      sessions: await Session.count(),
+      campaigns: await Campaign.count(),
+      templates: await Template.count(),
+      targets: await Target.count(),
+    };
+
+    const recentCampaigns = await Campaign.findAll({
+      include: [{ model: Template, as: "template" }],
+      order: [["createdAt", "DESC"]],
+      limit: 5,
+    });
+
+    res.render("dashboard", {
+      user: req.session.user,
+      stats,
+      recentCampaigns
+    });
+  } catch (err) {
+    console.error("❌ Dashboard error:", err);
+    res.render("dashboard", {
+      user: req.session.user,
+      stats: { sessions: 0, campaigns: 0, templates: 0, targets: 0 },
+      recentCampaigns: [],
+      error: err.message
+    });
+  }
+});
 
 // socket.io
 io.on("connection", (socket) => {
   console.log("🔌 Client connected:", socket.id);
-
   socket.on("disconnect", () => {
     console.log("❌ Client disconnected:", socket.id);
   });
@@ -69,10 +100,12 @@ io.on("connection", (socket) => {
 
 // db & start server
 await initDB();
-await sequelize.sync({ alter: true }); // auto update schema kalau ada field baru
+await sequelize.sync({ alter: true });
 
 // restore WA sessions dari DB
 await initSessions(io);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+server.listen(PORT, () =>
+  console.log(`🚀 Server running at http://localhost:${PORT}`)
+);
