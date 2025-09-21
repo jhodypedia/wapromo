@@ -5,6 +5,9 @@ import { getSession } from "../services/waService.js";
 
 const router = express.Router();
 
+// Map global untuk menandai campaign yang dihentikan
+const stoppedCampaigns = new Map();
+
 /**
  * List campaigns (EJS) + inject templates & sessions untuk modal create
  */
@@ -152,11 +155,20 @@ router.post("/:id/run", authRequired, async (req, res) => {
     cp.status = "running";
     await cp.save();
 
+    stoppedCampaigns.set(cp.id, false);
+
     const rand = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
     const message = cp.template.body + (cp.template.link ? `\n👉 ${cp.template.link}` : "");
 
     (async () => {
       for (const t of targets) {
+        if (stoppedCampaigns.get(cp.id)) {
+          cp.status = "stopped";
+          await cp.save();
+          io.emit("campaign_stopped", { campaignId: cp.id });
+          break;
+        }
+
         try {
           await sock.sendMessage(
             t.number.replace(/\D/g, "") + "@s.whatsapp.net",
@@ -172,14 +184,49 @@ router.post("/:id/run", authRequired, async (req, res) => {
           await t.save();
           io.emit("campaign_progress", { campaignId: cp.id, number: t.number, status: "error" });
         }
+
+        if (stoppedCampaigns.get(cp.id)) {
+          cp.status = "stopped";
+          await cp.save();
+          io.emit("campaign_stopped", { campaignId: cp.id });
+          break;
+        }
+
         await new Promise((r) => setTimeout(r, rand(cp.speedMinMs, cp.speedMaxMs)));
       }
-      cp.status = "done";
-      await cp.save();
-      io.emit("campaign_done", { campaignId: cp.id });
+
+      if (!stoppedCampaigns.get(cp.id)) {
+        cp.status = "done";
+        await cp.save();
+        io.emit("campaign_done", { campaignId: cp.id });
+      }
     })();
 
     res.json({ success: true, msg: "Campaign running" });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * Stop campaign
+ */
+router.post("/:id/stop", authRequired, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cp = await Campaign.findOne({
+      where: { id, userId: req.session.user.id }
+    });
+    if (!cp) return res.status(404).json({ success: false, error: "Campaign tidak ditemukan" });
+
+    stoppedCampaigns.set(cp.id, true);
+    cp.status = "stopped";
+    await cp.save();
+
+    const io = req.app.get("io");
+    io.emit("campaign_stopped", { campaignId: cp.id });
+
+    res.json({ success: true, msg: "Campaign dihentikan" });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
