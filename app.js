@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
 import session from "express-session";
+import expressLayouts from "express-ejs-layouts";
 import dotenv from "dotenv";
 import { initDB, sequelize } from "./config/db.js";
 
@@ -34,6 +35,9 @@ app.use(session({
   resave: false,
   saveUninitialized: false
 }));
+
+app.use(expressLayouts);
+app.set("layout", "layouts/main");
 
 // inject user to views
 app.use((req, res, next) => { res.locals.user = req.session.user || null; next(); });
