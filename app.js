@@ -14,6 +14,7 @@ import waRoutes from "./routes/wa.routes.js";
 import templateRoutes from "./routes/template.routes.js";
 import campaignRoutes from "./routes/campaign.routes.js";
 import { authRequired } from "./middlewares/auth.js";
+import { initSessions } from "./services/waService.js";
 
 dotenv.config();
 const app = express();
@@ -32,16 +33,20 @@ app.use(express.json());
 
 // session
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || "supersecret",
   resave: false,
   saveUninitialized: false
 }));
 
+// layouts
 app.use(expressLayouts);
 app.set("layout", "layouts/main");
 
 // inject user to views
-app.use((req, res, next) => { res.locals.user = req.session.user || null; next(); });
+app.use((req, res, next) => {
+  res.locals.user = req.session.user || null;
+  next();
+});
 
 // routes
 app.use("/auth", authRoutes);
@@ -53,10 +58,21 @@ app.use("/generate", generateRoutes);
 // dashboard
 app.get("/", authRequired, (req, res) => res.render("dashboard"));
 
-// socket
-io.on("connection", () => {});
+// socket.io
+io.on("connection", (socket) => {
+  console.log("🔌 Client connected:", socket.id);
 
-// db & start
+  socket.on("disconnect", () => {
+    console.log("❌ Client disconnected:", socket.id);
+  });
+});
+
+// db & start server
 await initDB();
-await sequelize.sync();
-server.listen(process.env.PORT, () => console.log(`🚀 http://localhost:${process.env.PORT}`));
+await sequelize.sync({ alter: true }); // auto update schema kalau ada field baru
+
+// restore WA sessions dari DB
+await initSessions(io);
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
