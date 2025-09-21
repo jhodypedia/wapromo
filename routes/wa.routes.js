@@ -1,26 +1,57 @@
 import express from "express";
 import { authRequired } from "../middlewares/auth.js";
-import { startSession, getSession, getPairingCode } from "../services/waService.js";
+import { startSession, getPairingCode } from "../services/waService.js";
 import { Session } from "../models/index.js";
 
 const router = express.Router();
 
+/**
+ * Halaman connect WhatsApp (render EJS)
+ */
 router.get("/connect", authRequired, async (req, res) => {
-  const sessions = await Session.findAll({ order:[["id","DESC"]] });
-  res.render("wa/connect", { sessions });
+  res.render("wa/connect"); // sessions akan dimuat via AJAX
 });
 
-router.post("/start", authRequired, async (req, res) => {
-  const { sessionId, label } = req.body;
-  const io = req.app.get("io");
-  await Session.upsert({ sessionId, label, status: "connecting" });
-  startSession(sessionId, io);
-  res.redirect("/wa/connect");
-});
-
-router.post("/pairing", authRequired, async (req, res) => {
-  const { sessionId, phone } = req.body;
+/**
+ * API: daftar semua session (JSON) → untuk AJAX loadSessions()
+ */
+router.get("/connect/list", authRequired, async (req, res) => {
   try {
+    const sessions = await Session.findAll({ order: [["id", "DESC"]] });
+    res.json(sessions);
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * API: start session baru (pakai QR)
+ */
+router.post("/start", authRequired, async (req, res) => {
+  try {
+    const { sessionId, label } = req.body;
+    if (!sessionId) return res.status(400).json({ success: false, error: "SessionId wajib" });
+
+    const io = req.app.get("io");
+    await Session.upsert({ sessionId, label, status: "connecting" });
+
+    startSession(sessionId, io);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * API: generate pairing 6 digit
+ */
+router.post("/pairing", authRequired, async (req, res) => {
+  try {
+    const { sessionId, phone } = req.body;
+    if (!sessionId || !phone) {
+      return res.status(400).json({ success: false, error: "SessionId dan nomor WA wajib" });
+    }
+
     const code = await getPairingCode(sessionId, phone);
     res.json({ success: true, code });
   } catch (e) {
