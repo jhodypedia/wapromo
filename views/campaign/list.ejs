@@ -1,13 +1,11 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">
-    <i class="fa fa-bullhorn text-primary me-2"></i>Campaigns
-  </h4>
-  <a href="/campaigns/new" class="btn btn-primary">
+  <h4 class="mb-0"><i class="fa fa-bullhorn text-primary me-2"></i>Campaigns</h4>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#campaignModal">
     <i class="fa fa-plus me-2"></i>Campaign Baru
-  </a>
+  </button>
 </div>
 
-<table class="table table-hover align-middle shadow-sm rounded">
+<table class="table table-hover align-middle">
   <thead class="table-light">
     <tr>
       <th>No</th>
@@ -15,16 +13,12 @@
       <th>Template</th>
       <th>Status</th>
       <th>Target</th>
-      <th class="text-center">Aksi</th>
+      <th>Aksi</th>
     </tr>
   </thead>
-  <tbody>
+  <tbody id="campaignTableBody">
     <% if (campaigns.length === 0) { %>
-      <tr>
-        <td colspan="6" class="text-center text-muted py-4">
-          Belum ada campaign, buat baru dulu.
-        </td>
-      </tr>
+      <tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>
     <% } else { %>
       <% campaigns.forEach((c, i) => { 
         const total = c.targets.length;
@@ -35,7 +29,7 @@
       %>
       <tr>
         <td><%= i+1 %></td>
-        <td class="fw-semibold"><%= c.name %></td>
+        <td><%= c.name %></td>
         <td><%= c.template ? c.template.name : "-" %></td>
         <td>
           <span class="badge bg-<%= 
@@ -45,35 +39,29 @@
             <%= c.status %>
           </span>
         </td>
-        <td class="d-flex flex-wrap gap-1">
+        <td>
           <span class="badge bg-info">Total: <%= total %></span>
           <span class="badge bg-success">Valid: <%= valid %></span>
           <span class="badge bg-danger">Invalid: <%= invalid %></span>
           <span class="badge bg-primary">Success: <%= success %></span>
           <span class="badge bg-dark">Error: <%= error %></span>
         </td>
-        <td class="text-center d-flex gap-1 justify-content-center">
+        <td class="d-flex gap-1">
           <% if (c.status==="idle") { %>
-            <button class="btn btn-sm btn-success btn-run-campaign" data-id="<%= c.id %>">
+            <button class="btn btn-sm btn-success run-campaign" data-id="<%= c.id %>">
               <i class="fa fa-play"></i>
             </button>
           <% } else if (c.status==="running") { %>
             <button class="btn btn-sm btn-secondary" disabled>
               <i class="fa fa-spinner fa-spin"></i>
             </button>
-          <% } else { %>
-            <button class="btn btn-sm btn-outline-secondary" disabled>
-              <i class="fa fa-check"></i>
-            </button>
           <% } %>
 
-          <!-- Tombol Detail -->
-          <button class="btn btn-sm btn-info text-white btn-detail-campaign" data-id="<%= c.id %>">
+          <button class="btn btn-sm btn-info text-white detail-campaign" data-id="<%= c.id %>">
             <i class="fa fa-eye"></i>
           </button>
 
-          <!-- Tombol Delete -->
-          <button class="btn btn-sm btn-danger btn-delete-campaign" data-id="<%= c.id %>">
+          <button class="btn btn-sm btn-danger delete-campaign" data-id="<%= c.id %>">
             <i class="fa fa-trash"></i>
           </button>
         </td>
@@ -83,19 +71,221 @@
   </tbody>
 </table>
 
+<!-- Modal Tambah Campaign -->
+<div class="modal fade" id="campaignModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title"><i class="fa fa-plus-circle text-primary me-2"></i>Buat Campaign Baru</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="campaignForm">
+          <div class="mb-3">
+            <label class="form-label">Nama Campaign</label>
+            <input id="campaignName" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Template</label>
+            <select id="templateId" class="form-select" required>
+              <% templates.forEach(t => { %>
+                <option value="<%= t.id %>"><%= t.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Session</label>
+            <select id="sessionId" class="form-select" required>
+              <% sessions.forEach(s => { %>
+                <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nomor Target (1 per baris)</label>
+            <textarea id="numbers" class="form-control" rows="5" placeholder="628123..., 628456..."></textarea>
+          </div>
+          <div class="row">
+            <div class="col">
+              <label class="form-label">Delay Min (ms)</label>
+              <input id="speedMinMs" type="number" class="form-control" value="5000">
+            </div>
+            <div class="col">
+              <label class="form-label">Delay Max (ms)</label>
+              <input id="speedMaxMs" type="number" class="form-control" value="15000">
+            </div>
+          </div>
+          <div class="mt-3 text-end">
+            <button class="btn btn-primary"><i class="fa fa-save me-2"></i>Simpan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Detail Campaign -->
 <div class="modal fade" id="campaignDetailModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header border-0">
-        <h5 class="modal-title">
-          <i class="fa fa-eye text-primary me-2"></i>Detail Campaign
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <h5 class="modal-title"><i class="fa fa-eye text-info me-2"></i>Detail Campaign</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="campaignDetailBody">
-        <div class="text-center text-muted">Memuat detail...</div>
+        <div class="text-muted">Loading...</div>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  toastr.options = { closeButton:true, progressBar:true, positionClass:"toast-top-right", timeOut:"3000" };
+
+  async function loadCampaigns() {
+    try {
+      const res = await fetch("/campaigns/list");
+      const data = await res.json();
+      const tbody = document.getElementById("campaignTableBody");
+      tbody.innerHTML = "";
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>';
+        return;
+      }
+      data.forEach((c, i) => {
+        const total = c.targets.length;
+        const valid = c.targets.filter(t=>t.status==="valid").length;
+        const invalid = c.targets.filter(t=>t.status==="invalid").length;
+        const success = c.targets.filter(t=>t.status==="success").length;
+        const error = c.targets.filter(t=>t.status==="error").length;
+
+        tbody.innerHTML += `
+          <tr>
+            <td>${i+1}</td>
+            <td>${c.name}</td>
+            <td>${c.template ? c.template.name : "-"}</td>
+            <td><span class="badge bg-${c.status==="done"?"success":(c.status==="running"?"warning":"secondary")}">${c.status}</span></td>
+            <td>
+              <span class="badge bg-info">Total: ${total}</span>
+              <span class="badge bg-success">Valid: ${valid}</span>
+              <span class="badge bg-danger">Invalid: ${invalid}</span>
+              <span class="badge bg-primary">Success: ${success}</span>
+              <span class="badge bg-dark">Error: ${error}</span>
+            </td>
+            <td class="d-flex gap-1">
+              ${c.status==="idle"
+                ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}"><i class="fa fa-play"></i></button>`
+                : (c.status==="running" ? `<button class="btn btn-sm btn-secondary" disabled><i class="fa fa-spinner fa-spin"></i></button>` : "")
+              }
+              <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${c.id}"><i class="fa fa-eye"></i></button>
+              <button class="btn btn-sm btn-danger delete-campaign" data-id="${c.id}"><i class="fa fa-trash"></i></button>
+            </td>
+          </tr>`;
+      });
+      bindActions();
+    } catch (err) {
+      console.error("Load campaigns error:", err);
+      toastr.error("Gagal memuat campaign");
+    }
+  }
+
+  function bindActions() {
+    document.querySelectorAll(".run-campaign").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const id = btn.dataset.id;
+        const res = await fetch(`/campaigns/${id}/run`, {method:"POST"});
+        const json = await res.json();
+        if (json.success) {
+          toastr.success("Campaign dijalankan");
+          loadCampaigns();
+        } else {
+          toastr.error(json.error || "Gagal menjalankan campaign");
+        }
+      });
+    });
+
+    document.querySelectorAll(".delete-campaign").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const id = btn.dataset.id;
+        const confirmDel = await Swal.fire({
+          title:"Hapus Campaign?",
+          text:"Data target juga akan terhapus.",
+          icon:"warning",
+          showCancelButton:true,
+          confirmButtonText:"Ya, hapus",
+          cancelButtonText:"Batal"
+        });
+        if (confirmDel.isConfirmed) {
+          const res = await fetch(`/campaigns/${id}`, {method:"DELETE"});
+          const json = await res.json();
+          if (json.success) {
+            toastr.success("Campaign dihapus");
+            loadCampaigns();
+          } else {
+            toastr.error(json.error || "Gagal menghapus");
+          }
+        }
+      });
+    });
+
+    document.querySelectorAll(".detail-campaign").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const id = btn.dataset.id;
+        const body = document.getElementById("campaignDetailBody");
+        body.innerHTML = "<div class='text-muted'>Loading...</div>";
+        new bootstrap.Modal(document.getElementById("campaignDetailModal")).show();
+        const res = await fetch(`/campaigns/${id}/detail`);
+        const json = await res.json();
+        if (json.success) {
+          const cp = json.campaign;
+          body.innerHTML = `
+            <h6>${cp.name}</h6>
+            <p><b>Status:</b> ${cp.status}</p>
+            <p><b>Template:</b> ${cp.template ? cp.template.name : "-"}</p>
+            <hr>
+            <h6>Target</h6>
+            <ul class="list-group">
+              ${cp.targets.map(t=>`<li class="list-group-item d-flex justify-content-between">
+                ${t.number}
+                <span class="badge bg-${t.status==="success"?"success":(t.status==="error"?"danger":(t.status==="valid"?"info":"secondary"))}">${t.status}</span>
+              </li>`).join("")}
+            </ul>`;
+        } else {
+          body.innerHTML = `<div class="text-danger">Gagal memuat detail: ${json.error}</div>`;
+        }
+      });
+    });
+  }
+
+  const campaignForm = document.getElementById("campaignForm");
+  if (campaignForm) {
+    campaignForm.addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      const data = {
+        name: document.getElementById("campaignName").value.trim(),
+        templateId: document.getElementById("templateId").value,
+        sessionId: document.getElementById("sessionId").value,
+        numbers: document.getElementById("numbers").value.trim(),
+        speedMinMs: document.getElementById("speedMinMs").value,
+        speedMaxMs: document.getElementById("speedMaxMs").value
+      };
+      const res = await fetch("/campaigns/create", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(data)
+      });
+      const json = await res.json();
+      if (json.success) {
+        toastr.success("Campaign berhasil dibuat");
+        bootstrap.Modal.getInstance(document.getElementById("campaignModal")).hide();
+        loadCampaigns();
+      } else {
+        toastr.error(json.error || "Gagal membuat campaign");
+      }
+    });
+  }
+
+  loadCampaigns();
+});
+</script>
