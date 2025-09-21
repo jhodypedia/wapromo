@@ -14,7 +14,7 @@
           <th>Nama</th>
           <th>Template</th>
           <th>Status</th>
-          <th style="width:120px">Aksi</th>
+          <th style="width:150px">Aksi</th>
         </tr>
       </thead>
       <tbody id="campaignTableBody">
@@ -116,20 +116,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       table.clear();
 
-      if (!data.length) {
-        table.draw();
-        return;
-      }
-
       data.forEach((c, i) => {
         const statusBadge = `<span class="badge rounded-pill bg-${
-          c.status==="done" ? "success" : c.status==="running" ? "warning" : "secondary"
+          c.status==="done" ? "success" :
+          c.status==="running" ? "warning" :
+          c.status==="stopped" ? "danger" : "secondary"
         } px-3 py-2">${c.status}</span>`;
 
         const actions = `
           ${c.status==="idle"
             ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}" title="Jalankan"><i class="fa fa-play"></i></button>`
-            : (c.status==="running" ? `<button class="btn btn-sm btn-secondary" disabled><i class="fa fa-spinner fa-spin"></i></button>` : "")
+            : (c.status==="running"
+              ? `<button class="btn btn-sm btn-warning stop-campaign" data-id="${c.id}" title="Stop"><i class="fa fa-stop"></i></button>`
+              : "")
           }
           <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${c.id}" title="Detail"><i class="fa fa-eye"></i></button>
           <button class="btn btn-sm btn-danger delete-campaign" data-id="${c.id}" title="Hapus"><i class="fa fa-trash"></i></button>
@@ -162,6 +161,29 @@ document.addEventListener("DOMContentLoaded", () => {
         loadCampaigns();
       } else {
         Swal.fire("Error", json.error || "Gagal menjalankan campaign", "error");
+      }
+    });
+
+    // Stop campaign
+    $('#campaignTable').off('click', '.stop-campaign').on('click', '.stop-campaign', async function () {
+      const id = $(this).data('id');
+      const confirmStop = await Swal.fire({
+        title:"Stop Campaign?",
+        text:"Campaign akan dihentikan.",
+        icon:"warning",
+        showCancelButton:true,
+        confirmButtonText:"Ya, stop",
+        cancelButtonText:"Batal"
+      });
+      if (!confirmStop.isConfirmed) return;
+
+      const res = await fetch(`/campaigns/${id}/stop`, {method:"POST"});
+      const json = await res.json();
+      if (json.success) {
+        Swal.fire("Berhasil", "Campaign dihentikan", "success");
+        loadCampaigns();
+      } else {
+        Swal.fire("Error", json.error || "Gagal stop campaign", "error");
       }
     });
 
@@ -248,7 +270,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Init
   loadCampaigns();
 });
 </script>
