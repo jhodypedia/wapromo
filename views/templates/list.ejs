@@ -119,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      const res = await fetch(id ? `/templates/${id}` : "/templates/new", {
+      const res = await fetch(id ? `/templates/${id}` : "/templates", {
         method: id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
