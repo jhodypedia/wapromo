@@ -79,7 +79,7 @@ export function getSession(sessionId) {
 }
 
 /**
- * Generate Pairing Code (8 digit)
+ * Generate Pairing Code asli dari Baileys (tanpa modifikasi)
  */
 export async function getPairingCode(sessionId, phoneNumber) {
   const sock = getSession(sessionId);
@@ -87,17 +87,12 @@ export async function getPairingCode(sessionId, phoneNumber) {
 
   const jid = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
 
-  // kasih jeda supaya socket siap
+  // kasih jeda biar socket siap
   await delay(6000);
 
   try {
-    let code = await sock.requestPairingCode(jid);
-
-    // ambil hanya digit, fix jadi 8 digit
-    code = (code.match(/\d/g) || []).join("").slice(0, 8);
-    if (code.length < 8) code = code.padEnd(8, "0");
-
-    return code;
+    const code = await sock.requestPairingCode(jid);
+    return code; // 👉 langsung return apa adanya dari Baileys
   } catch (err) {
     throw new Error("Gagal generate pairing code: " + err.message);
   }
