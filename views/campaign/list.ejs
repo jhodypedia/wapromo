@@ -1,127 +1,77 @@
-<div class="d-flex justify-content-between align-items-center mb-3">
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h4 class="mb-0"><i class="fa fa-bullhorn text-primary me-2"></i>Campaigns</h4>
   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#campaignModal">
     <i class="fa fa-plus me-2"></i>Campaign Baru
   </button>
 </div>
 
-<table class="table table-hover align-middle">
-  <thead class="table-light">
-    <tr>
-      <th>No</th>
-      <th>Nama</th>
-      <th>Template</th>
-      <th>Status</th>
-      <th>Target</th>
-      <th>Aksi</th>
-    </tr>
-  </thead>
-  <tbody id="campaignTableBody">
-    <% if (campaigns.length === 0) { %>
-      <tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>
-    <% } else { %>
-      <% campaigns.forEach((c, i) => { 
-        const total = c.targets.length;
-        const valid = c.targets.filter(t=>t.status==="valid").length;
-        const invalid = c.targets.filter(t=>t.status==="invalid").length;
-        const success = c.targets.filter(t=>t.status==="success").length;
-        const error = c.targets.filter(t=>t.status==="error").length;
-      %>
+<div class="table-responsive shadow-sm rounded">
+  <table class="table table-hover align-middle mb-0">
+    <thead class="table-light">
       <tr>
-        <td><%= i+1 %></td>
-        <td><%= c.name %></td>
-        <td><%= c.template ? c.template.name : "-" %></td>
-        <td>
-          <span class="badge bg-<%= 
-            c.status==="done" ? "success" : 
-            c.status==="running" ? "warning" : "secondary" 
-          %>">
-            <%= c.status %>
-          </span>
-        </td>
-        <td>
-          <span class="badge bg-info">Total: <%= total %></span>
-          <span class="badge bg-success">Valid: <%= valid %></span>
-          <span class="badge bg-danger">Invalid: <%= invalid %></span>
-          <span class="badge bg-primary">Success: <%= success %></span>
-          <span class="badge bg-dark">Error: <%= error %></span>
-        </td>
-        <td class="d-flex gap-1">
-          <% if (c.status==="idle") { %>
-            <button class="btn btn-sm btn-success run-campaign" data-id="<%= c.id %>">
-              <i class="fa fa-play"></i>
-            </button>
-          <% } else if (c.status==="running") { %>
-            <button class="btn btn-sm btn-secondary" disabled>
-              <i class="fa fa-spinner fa-spin"></i>
-            </button>
-          <% } %>
-
-          <button class="btn btn-sm btn-info text-white detail-campaign" data-id="<%= c.id %>">
-            <i class="fa fa-eye"></i>
-          </button>
-
-          <button class="btn btn-sm btn-danger delete-campaign" data-id="<%= c.id %>">
-            <i class="fa fa-trash"></i>
-          </button>
-        </td>
+        <th style="width:50px">#</th>
+        <th>Nama</th>
+        <th>Template</th>
+        <th>Status</th>
+        <th>Target</th>
+        <th style="width:140px">Aksi</th>
       </tr>
-      <% }) %>
-    <% } %>
-  </tbody>
-</table>
-
-<!-- Modal Tambah Campaign -->
-<div class="modal fade" id="campaignModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header border-0">
-        <h5 class="modal-title"><i class="fa fa-plus-circle text-primary me-2"></i>Buat Campaign Baru</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="campaignForm">
-          <div class="mb-3">
-            <label class="form-label">Nama Campaign</label>
-            <input id="campaignName" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Template</label>
-            <select id="templateId" class="form-select" required>
-              <% templates.forEach(t => { %>
-                <option value="<%= t.id %>"><%= t.name %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Session</label>
-            <select id="sessionId" class="form-select" required>
-              <% sessions.forEach(s => { %>
-                <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Nomor Target (1 per baris)</label>
-            <textarea id="numbers" class="form-control" rows="5" placeholder="628123..., 628456..."></textarea>
-          </div>
-          <div class="row">
-            <div class="col">
-              <label class="form-label">Delay Min (ms)</label>
-              <input id="speedMinMs" type="number" class="form-control" value="5000">
+    </thead>
+    <tbody id="campaignTableBody">
+      <% if (campaigns.length === 0) { %>
+        <tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>
+      <% } else { %>
+        <% campaigns.forEach((c, i) => { 
+          const total = c.targets.length;
+          const valid = c.targets.filter(t=>t.status==="valid").length;
+          const invalid = c.targets.filter(t=>t.status==="invalid").length;
+          const success = c.targets.filter(t=>t.status==="success").length;
+          const error = c.targets.filter(t=>t.status==="error").length;
+        %>
+        <tr>
+          <td><%= i+1 %></td>
+          <td class="fw-semibold"><%= c.name %></td>
+          <td><%= c.template ? c.template.name : "-" %></td>
+          <td>
+            <span class="badge rounded-pill bg-<%= 
+              c.status==="done" ? "success" : 
+              c.status==="running" ? "warning" : "secondary" 
+            %> px-3 py-2">
+              <%= c.status %>
+            </span>
+          </td>
+          <td>
+            <div class="d-flex flex-wrap gap-1 small">
+              <span class="badge bg-info">T:<%= total %></span>
+              <span class="badge bg-success">V:<%= valid %></span>
+              <span class="badge bg-danger">I:<%= invalid %></span>
+              <span class="badge bg-primary">S:<%= success %></span>
+              <span class="badge bg-dark">E:<%= error %></span>
             </div>
-            <div class="col">
-              <label class="form-label">Delay Max (ms)</label>
-              <input id="speedMaxMs" type="number" class="form-control" value="15000">
-            </div>
-          </div>
-          <div class="mt-3 text-end">
-            <button class="btn btn-primary"><i class="fa fa-save me-2"></i>Simpan</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
+          </td>
+          <td class="d-flex gap-1">
+            <% if (c.status==="idle") { %>
+              <button class="btn btn-sm btn-success run-campaign" data-id="<%= c.id %>">
+                <i class="fa fa-play"></i>
+              </button>
+            <% } else if (c.status==="running") { %>
+              <button class="btn btn-sm btn-secondary" disabled>
+                <i class="fa fa-spinner fa-spin"></i>
+              </button>
+            <% } %>
+            <button class="btn btn-sm btn-info text-white detail-campaign" data-id="<%= c.id %>">
+              <i class="fa fa-eye"></i>
+            </button>
+            <button class="btn btn-sm btn-danger delete-campaign" data-id="<%= c.id %>">
+              <i class="fa fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+        <% }) %>
+      <% } %>
+    </tbody>
+  </table>
 </div>
 
 <!-- Modal Detail Campaign -->
@@ -138,6 +88,13 @@
     </div>
   </div>
 </div>
+
+<style>
+  .table td, .table th { vertical-align: middle; }
+  .badge { font-size: .75rem; font-weight: 500; }
+  .modal-body ul.list-group { max-height: 350px; overflow-y: auto; }
+  .modal-body ul.list-group li { font-size: .85rem; }
+</style>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
@@ -163,15 +120,17 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody.innerHTML += `
           <tr>
             <td>${i+1}</td>
-            <td>${c.name}</td>
+            <td class="fw-semibold">${c.name}</td>
             <td>${c.template ? c.template.name : "-"}</td>
-            <td><span class="badge bg-${c.status==="done"?"success":(c.status==="running"?"warning":"secondary")}">${c.status}</span></td>
+            <td><span class="badge rounded-pill bg-${c.status==="done"?"success":(c.status==="running"?"warning":"secondary")} px-3 py-2">${c.status}</span></td>
             <td>
-              <span class="badge bg-info">Total: ${total}</span>
-              <span class="badge bg-success">Valid: ${valid}</span>
-              <span class="badge bg-danger">Invalid: ${invalid}</span>
-              <span class="badge bg-primary">Success: ${success}</span>
-              <span class="badge bg-dark">Error: ${error}</span>
+              <div class="d-flex flex-wrap gap-1 small">
+                <span class="badge bg-info">T:${total}</span>
+                <span class="badge bg-success">V:${valid}</span>
+                <span class="badge bg-danger">I:${invalid}</span>
+                <span class="badge bg-primary">S:${success}</span>
+                <span class="badge bg-dark">E:${error}</span>
+              </div>
             </td>
             <td class="d-flex gap-1">
               ${c.status==="idle"
@@ -185,7 +144,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       bindActions();
     } catch (err) {
-      console.error("Load campaigns error:", err);
       toastr.error("Gagal memuat campaign");
     }
   }
@@ -240,14 +198,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (json.success) {
           const cp = json.campaign;
           body.innerHTML = `
-            <h6>${cp.name}</h6>
-            <p><b>Status:</b> ${cp.status}</p>
-            <p><b>Template:</b> ${cp.template ? cp.template.name : "-"}</p>
+            <h6 class="fw-bold">${cp.name}</h6>
+            <p class="mb-1"><b>Status:</b> ${cp.status}</p>
+            <p class="mb-2"><b>Template:</b> ${cp.template ? cp.template.name : "-"}</p>
             <hr>
-            <h6>Target</h6>
-            <ul class="list-group">
-              ${cp.targets.map(t=>`<li class="list-group-item d-flex justify-content-between">
-                ${t.number}
+            <h6 class="fw-bold">Target</h6>
+            <ul class="list-group small">
+              ${cp.targets.map(t=>`<li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>${t.number}</span>
                 <span class="badge bg-${t.status==="success"?"success":(t.status==="error"?"danger":(t.status==="valid"?"info":"secondary"))}">${t.status}</span>
               </li>`).join("")}
             </ul>`;
@@ -255,34 +213,6 @@ document.addEventListener("DOMContentLoaded", () => {
           body.innerHTML = `<div class="text-danger">Gagal memuat detail: ${json.error}</div>`;
         }
       });
-    });
-  }
-
-  const campaignForm = document.getElementById("campaignForm");
-  if (campaignForm) {
-    campaignForm.addEventListener("submit", async (e)=>{
-      e.preventDefault();
-      const data = {
-        name: document.getElementById("campaignName").value.trim(),
-        templateId: document.getElementById("templateId").value,
-        sessionId: document.getElementById("sessionId").value,
-        numbers: document.getElementById("numbers").value.trim(),
-        speedMinMs: document.getElementById("speedMinMs").value,
-        speedMaxMs: document.getElementById("speedMaxMs").value
-      };
-      const res = await fetch("/campaigns/create", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(data)
-      });
-      const json = await res.json();
-      if (json.success) {
-        toastr.success("Campaign berhasil dibuat");
-        bootstrap.Modal.getInstance(document.getElementById("campaignModal")).hide();
-        loadCampaigns();
-      } else {
-        toastr.error(json.error || "Gagal membuat campaign");
-      }
     });
   }
 
