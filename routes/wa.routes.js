@@ -1,12 +1,17 @@
 import express from "express";
 import { authRequired } from "../middlewares/auth.js";
-import { startSession, getPairingCode, checkWaNumber } from "../services/waService.js";
+import {
+  startSession,
+  getPairingCode,
+  checkWaNumber,
+  deleteSession
+} from "../services/waService.js";
 import { Session } from "../models/index.js";
 
 const router = express.Router();
 
 /**
- * Halaman connect WhatsApp (UI EJS)
+ * Halaman connect WhatsApp
  */
 router.get("/connect", authRequired, async (req, res) => {
   const sessions = await Session.findAll({ order: [["id", "DESC"]] });
@@ -14,7 +19,7 @@ router.get("/connect", authRequired, async (req, res) => {
 });
 
 /**
- * API: daftar session (JSON)
+ * API: daftar session
  */
 router.get("/connect/list", authRequired, async (req, res) => {
   try {
@@ -26,7 +31,7 @@ router.get("/connect/list", authRequired, async (req, res) => {
 });
 
 /**
- * API: start session baru (QR / Pairing)
+ * API: start session baru
  */
 router.post("/start", authRequired, async (req, res) => {
   try {
@@ -38,20 +43,18 @@ router.post("/start", authRequired, async (req, res) => {
     const io = req.app.get("io");
     const selectedMode = mode === "pairing" ? "pairing" : "qr";
 
-    // Simpan / update ke DB
     await Session.upsert({ sessionId, label, mode: selectedMode, status: "connecting" });
 
-    // Jalankan WA socket
     startSession(sessionId, io, selectedMode, label);
 
-    res.json({ success: true, msg: `Session ${sessionId} dimulai dengan mode ${selectedMode}` });
+    res.json({ success: true, msg: `Session ${sessionId} dimulai (${selectedMode})` });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
 /**
- * API: generate pairing code (8 digit)
+ * API: generate pairing code
  */
 router.post("/pairing", authRequired, async (req, res) => {
   try {
@@ -62,7 +65,6 @@ router.post("/pairing", authRequired, async (req, res) => {
 
     const io = req.app.get("io");
 
-    // Pastikan session ada
     let session = await Session.findOne({ where: { sessionId } });
     if (!session) {
       session = await Session.create({
@@ -74,7 +76,6 @@ router.post("/pairing", authRequired, async (req, res) => {
       startSession(sessionId, io, "pairing", sessionId);
     }
 
-    // Retry generate pairing code
     async function tryGenerate(maxRetry = 3) {
       let lastErr;
       for (let i = 1; i <= maxRetry; i++) {
@@ -110,6 +111,24 @@ router.post("/check", authRequired, async (req, res) => {
     res.json({ success: true, number, exists });
   } catch (e) {
     res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * API: hapus session
+ */
+router.delete("/:sessionId", authRequired, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const ok = await deleteSession(sessionId);
+
+    if (!ok) {
+      return res.status(500).json({ success: false, error: "Gagal hapus session" });
+    }
+
+    res.json({ success: true, msg: `Session ${sessionId} berhasil dihapus` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
