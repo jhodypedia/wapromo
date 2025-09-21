@@ -15,3 +15,30 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
 .btn-primary:hover{background:var(--primary-600);border-color:var(--primary-600)}
 .glass{background:rgba(255,255,255,.8)!important;backdrop-filter:saturate(180%) blur(8px)}
 .badge{text-transform:capitalize}
+
+/* Pairing Code Style */
+.pairing-code {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  font-size: 2rem;
+  font-weight: bold;
+  letter-spacing: 4px;
+}
+.pairing-code span {
+  display: inline-block;
+  width: 36px;
+  height: 48px;
+  line-height: 48px;
+  text-align: center;
+  border: 2px solid #0d6efd;
+  border-radius: 6px;
+  color: #0d6efd;
+  background: #f8f9fa;
+}
+.pairing-dash {
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 0 4px;
+  color: #6c757d;
+}
