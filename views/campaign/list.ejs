@@ -5,72 +5,23 @@
   </button>
 </div>
 
-<div class="table-responsive shadow-sm rounded">
-  <table class="table table-hover align-middle mb-0">
-    <thead class="table-light">
-      <tr>
-        <th style="width:50px">#</th>
-        <th>Nama</th>
-        <th>Template</th>
-        <th>Status</th>
-        <th>Target</th>
-        <th style="width:140px">Aksi</th>
-      </tr>
-    </thead>
-    <tbody id="campaignTableBody">
-      <% if (campaigns.length === 0) { %>
-        <tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>
-      <% } else { %>
-        <% campaigns.forEach((c, i) => { 
-          const total = c.targets.length;
-          const valid = c.targets.filter(t=>t.status==="valid").length;
-          const invalid = c.targets.filter(t=>t.status==="invalid").length;
-          const success = c.targets.filter(t=>t.status==="success").length;
-          const error = c.targets.filter(t=>t.status==="error").length;
-        %>
+<div class="card shadow-sm">
+  <div class="card-body table-responsive">
+    <table id="campaignTable" class="table table-hover align-middle w-100">
+      <thead class="table-light">
         <tr>
-          <td><%= i+1 %></td>
-          <td class="fw-semibold"><%= c.name %></td>
-          <td><%= c.template ? c.template.title : "-" %></td>
-          <td>
-            <span class="badge rounded-pill bg-<%= 
-              c.status==="done" ? "success" : 
-              c.status==="running" ? "warning" : "secondary" 
-            %> px-3 py-2">
-              <%= c.status %>
-            </span>
-          </td>
-          <td>
-            <div class="d-flex flex-wrap gap-1 small">
-              <span class="badge bg-info">T:<%= total %></span>
-              <span class="badge bg-success">V:<%= valid %></span>
-              <span class="badge bg-danger">I:<%= invalid %></span>
-              <span class="badge bg-primary">S:<%= success %></span>
-              <span class="badge bg-dark">E:<%= error %></span>
-            </div>
-          </td>
-          <td class="d-flex gap-1">
-            <% if (c.status==="idle") { %>
-              <button class="btn btn-sm btn-success run-campaign" data-id="<%= c.id %>">
-                <i class="fa fa-play"></i>
-              </button>
-            <% } else if (c.status==="running") { %>
-              <button class="btn btn-sm btn-secondary" disabled>
-                <i class="fa fa-spinner fa-spin"></i>
-              </button>
-            <% } %>
-            <button class="btn btn-sm btn-info text-white detail-campaign" data-id="<%= c.id %>">
-              <i class="fa fa-eye"></i>
-            </button>
-            <button class="btn btn-sm btn-danger delete-campaign" data-id="<%= c.id %>">
-              <i class="fa fa-trash"></i>
-            </button>
-          </td>
+          <th style="width:40px">#</th>
+          <th>Nama</th>
+          <th>Template</th>
+          <th>Status</th>
+          <th style="width:120px">Aksi</th>
         </tr>
-        <% }) %>
-      <% } %>
-    </tbody>
-  </table>
+      </thead>
+      <tbody id="campaignTableBody">
+        <!-- AJAX isi -->
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <!-- Modal Create Campaign -->
@@ -146,125 +97,130 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  toastr.options = { closeButton:true, progressBar:true, positionClass:"toast-top-right", timeOut:"3000" };
+  let table = $('#campaignTable').DataTable({
+    responsive: true,
+    pageLength: 5,
+    lengthMenu: [5, 10, 25, 50],
+    language: {
+      search: "Cari:",
+      lengthMenu: "Tampilkan _MENU_ data",
+      info: "Menampilkan _START_ - _END_ dari _TOTAL_ data",
+      paginate: { previous: "‹", next: "›" },
+      zeroRecords: "Tidak ada data ditemukan"
+    }
+  });
 
   async function loadCampaigns() {
     try {
       const res = await fetch("/campaigns/list");
       const data = await res.json();
-      const tbody = document.getElementById("campaignTableBody");
-      tbody.innerHTML = "";
+      table.clear();
+
       if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>';
+        table.draw();
         return;
       }
-      data.forEach((c, i) => {
-        const total = c.targets.length;
-        const valid = c.targets.filter(t=>t.status==="valid").length;
-        const invalid = c.targets.filter(t=>t.status==="invalid").length;
-        const success = c.targets.filter(t=>t.status==="success").length;
-        const error = c.targets.filter(t=>t.status==="error").length;
 
-        tbody.innerHTML += `
-          <tr>
-            <td>${i+1}</td>
-            <td class="fw-semibold">${c.name}</td>
-            <td>${c.template ? c.template.title : "-"}</td>
-            <td><span class="badge rounded-pill bg-${c.status==="done"?"success":(c.status==="running"?"warning":"secondary")} px-3 py-2">${c.status}</span></td>
-            <td>
-              <div class="d-flex flex-wrap gap-1 small">
-                <span class="badge bg-info">T:${total}</span>
-                <span class="badge bg-success">V:${valid}</span>
-                <span class="badge bg-danger">I:${invalid}</span>
-                <span class="badge bg-primary">S:${success}</span>
-                <span class="badge bg-dark">E:${error}</span>
-              </div>
-            </td>
-            <td class="d-flex gap-1">
-              ${c.status==="idle"
-                ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}"><i class="fa fa-play"></i></button>`
-                : (c.status==="running" ? `<button class="btn btn-sm btn-secondary" disabled><i class="fa fa-spinner fa-spin"></i></button>` : "")
-              }
-              <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${c.id}"><i class="fa fa-eye"></i></button>
-              <button class="btn btn-sm btn-danger delete-campaign" data-id="${c.id}"><i class="fa fa-trash"></i></button>
-            </td>
-          </tr>`;
+      data.forEach((c, i) => {
+        const statusBadge = `<span class="badge rounded-pill bg-${
+          c.status==="done" ? "success" : c.status==="running" ? "warning" : "secondary"
+        } px-3 py-2">${c.status}</span>`;
+
+        const actions = `
+          ${c.status==="idle"
+            ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}" title="Jalankan"><i class="fa fa-play"></i></button>`
+            : (c.status==="running" ? `<button class="btn btn-sm btn-secondary" disabled><i class="fa fa-spinner fa-spin"></i></button>` : "")
+          }
+          <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${c.id}" title="Detail"><i class="fa fa-eye"></i></button>
+          <button class="btn btn-sm btn-danger delete-campaign" data-id="${c.id}" title="Hapus"><i class="fa fa-trash"></i></button>
+        `;
+
+        table.row.add([
+          i+1,
+          `<span class="fw-semibold">${c.name}</span>`,
+          c.template ? c.template.title : "-",
+          statusBadge,
+          `<div class="d-flex gap-1">${actions}</div>`
+        ]);
       });
+
+      table.draw();
       bindActions();
     } catch (err) {
-      toastr.error("Gagal memuat campaign");
+      Swal.fire("Error", "Gagal memuat campaign", "error");
     }
   }
 
   function bindActions() {
-    document.querySelectorAll(".run-campaign").forEach(btn=>{
-      btn.addEventListener("click", async ()=>{
-        const id = btn.dataset.id;
-        const res = await fetch(`/campaigns/${id}/run`, {method:"POST"});
-        const json = await res.json();
-        if (json.success) {
-          toastr.success("Campaign dijalankan");
-          loadCampaigns();
-        } else {
-          toastr.error(json.error || "Gagal menjalankan campaign");
-        }
-      });
+    // Jalankan campaign
+    $('#campaignTable').off('click', '.run-campaign').on('click', '.run-campaign', async function () {
+      const id = $(this).data('id');
+      const res = await fetch(`/campaigns/${id}/run`, {method:"POST"});
+      const json = await res.json();
+      if (json.success) {
+        Swal.fire("Berhasil", "Campaign dijalankan", "success");
+        loadCampaigns();
+      } else {
+        Swal.fire("Error", json.error || "Gagal menjalankan campaign", "error");
+      }
     });
 
-    document.querySelectorAll(".delete-campaign").forEach(btn=>{
-      btn.addEventListener("click", async ()=>{
-        const id = btn.dataset.id;
-        const confirmDel = await Swal.fire({
-          title:"Hapus Campaign?",
-          text:"Data target juga akan terhapus.",
-          icon:"warning",
-          showCancelButton:true,
-          confirmButtonText:"Ya, hapus",
-          cancelButtonText:"Batal"
-        });
-        if (confirmDel.isConfirmed) {
-          const res = await fetch(`/campaigns/${id}`, {method:"DELETE"});
-          const json = await res.json();
-          if (json.success) {
-            toastr.success("Campaign dihapus");
-            loadCampaigns();
-          } else {
-            toastr.error(json.error || "Gagal menghapus");
-          }
-        }
+    // Hapus campaign
+    $('#campaignTable').off('click', '.delete-campaign').on('click', '.delete-campaign', async function () {
+      const id = $(this).data('id');
+      const confirmDel = await Swal.fire({
+        title:"Hapus Campaign?",
+        text:"Data target juga akan terhapus.",
+        icon:"warning",
+        showCancelButton:true,
+        confirmButtonText:"Ya, hapus",
+        cancelButtonText:"Batal"
       });
+      if (!confirmDel.isConfirmed) return;
+
+      const res = await fetch(`/campaigns/${id}`, {method:"DELETE"});
+      const json = await res.json();
+      if (json.success) {
+        Swal.fire("Berhasil", "Campaign dihapus", "success");
+        loadCampaigns();
+      } else {
+        Swal.fire("Error", json.error || "Gagal menghapus", "error");
+      }
     });
 
-    document.querySelectorAll(".detail-campaign").forEach(btn=>{
-      btn.addEventListener("click", async ()=>{
-        const id = btn.dataset.id;
-        const body = document.getElementById("campaignDetailBody");
-        body.innerHTML = "<div class='text-muted'>Loading...</div>";
-        new bootstrap.Modal(document.getElementById("campaignDetailModal")).show();
-        const res = await fetch(`/campaigns/${id}/detail`);
-        const json = await res.json();
-        if (json.success) {
-          const cp = json.campaign;
-          body.innerHTML = `
-            <h6 class="fw-bold">${cp.name}</h6>
-            <p class="mb-1"><b>Status:</b> ${cp.status}</p>
-            <p class="mb-2"><b>Template:</b> ${cp.template ? cp.template.title : "-"}</p>
-            <hr>
-            <h6 class="fw-bold">Target</h6>
-            <ul class="list-group small">
-              ${cp.targets.map(t=>`<li class="list-group-item d-flex justify-content-between align-items-center">
+    // Detail campaign
+    $('#campaignTable').off('click', '.detail-campaign').on('click', '.detail-campaign', async function () {
+      const id = $(this).data('id');
+      const body = document.getElementById("campaignDetailBody");
+      body.innerHTML = "<div class='text-muted'>Loading...</div>";
+      new bootstrap.Modal(document.getElementById("campaignDetailModal")).show();
+
+      const res = await fetch(`/campaigns/${id}/detail`);
+      const json = await res.json();
+      if (json.success) {
+        const cp = json.campaign;
+        body.innerHTML = `
+          <h6 class="fw-bold">${cp.name}</h6>
+          <p class="mb-1"><b>Status:</b> ${cp.status}</p>
+          <p class="mb-2"><b>Template:</b> ${cp.template ? cp.template.title : "-"}</p>
+          <hr>
+          <h6 class="fw-bold">Target</h6>
+          <ul class="list-group small">
+            ${cp.targets.map(t=>`
+              <li class="list-group-item d-flex justify-content-between align-items-center">
                 <span>${t.number}</span>
-                <span class="badge bg-${t.status==="success"?"success":(t.status==="error"?"danger":(t.status==="valid"?"info":"secondary"))}">${t.status}</span>
+                <span class="badge bg-${t.status==="success"?"success":(t.status==="error"?"danger":(t.status==="valid"?"info":"secondary"))}">
+                  ${t.status}
+                </span>
               </li>`).join("")}
-            </ul>`;
-        } else {
-          body.innerHTML = `<div class="text-danger">Gagal memuat detail: ${json.error}</div>`;
-        }
-      });
+          </ul>`;
+      } else {
+        body.innerHTML = `<div class="text-danger">Gagal memuat detail: ${json.error}</div>`;
+      }
     });
   }
 
-  // Form create campaign AJAX
+  // Form create campaign
   const form = document.getElementById("campaignForm");
   form.addEventListener("submit", async (e)=>{
     e.preventDefault();
@@ -283,15 +239,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     const json = await res.json();
     if(json.success){
-      toastr.success("Campaign berhasil dibuat");
+      Swal.fire("Berhasil", "Campaign berhasil dibuat", "success");
       bootstrap.Modal.getInstance(document.getElementById("campaignModal"))?.hide();
       form.reset();
       loadCampaigns();
     }else{
-      toastr.error(json.error || "Gagal membuat campaign");
+      Swal.fire("Error", json.error || "Gagal membuat campaign", "error");
     }
   });
 
+  // Init
   loadCampaigns();
 });
 </script>
