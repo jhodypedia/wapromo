@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const socket = window.io ? io() : null;
 
-  // Toastr setup (hanya notifikasi, bukan konfirmasi)
+  // Toastr setup
   toastr.options = {
     closeButton: true,
     progressBar: true,
@@ -10,41 +10,62 @@ document.addEventListener("DOMContentLoaded", () => {
     timeOut: "3000"
   };
 
-  /**
-   * Render session cards
-   */
-  function renderSessions(sessions) {
-    const container = document.getElementById("sessions");
-    container.innerHTML = sessions
-      .map(
-        (s) => `
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <div class="card h-100 d-flex flex-column">
-            <div class="card-body flex-grow-1">
-              <div class="fw-semibold">${s.label || s.sessionId}</div>
-              <div class="small text-muted">ID: ${s.sessionId}</div>
-              <span class="badge mt-2 bg-${
-                s.status === "connected"
-                  ? "success"
-                  : s.status === "reconnecting"
-                  ? "warning"
-                  : "secondary"
-              }">${s.status}</span>
-            </div>
-            <div class="card-footer d-flex justify-content-between">
-              <button class="btn btn-sm btn-outline-primary open-session" data-session="${s.sessionId}">
-                <i class="fa fa-qrcode me-1"></i>Open
-              </button>
-              <button class="btn btn-sm btn-outline-danger delete-session" data-session="${s.sessionId}">
-                <i class="fa fa-trash me-1"></i>Delete
-              </button>
-            </div>
-          </div>
-        </div>`
-      )
-      .join("");
+  const container = document.getElementById("sessions");
+  if (!container) return;
 
-    // bind tombol open
+  /**
+   * Render session card
+   */
+  function renderSessionCard(s) {
+    return `
+      <div class="col-sm-6 col-md-4 col-lg-3 session-card" id="session-${s.sessionId}">
+        <div class="card h-100 d-flex flex-column">
+          <div class="card-body flex-grow-1">
+            <div class="fw-semibold">${s.label || s.sessionId}</div>
+            <div class="small text-muted">ID: ${s.sessionId}</div>
+            <span class="badge mt-2 bg-${
+              s.status === "connected"
+                ? "success"
+                : s.status === "reconnecting"
+                ? "warning"
+                : "secondary"
+            }">${s.status}</span>
+          </div>
+          <div class="card-footer d-flex justify-content-between">
+            <button class="btn btn-sm btn-outline-primary open-session" data-session="${s.sessionId}">
+              <i class="fa fa-qrcode me-1"></i>Buka
+            </button>
+            <button class="btn btn-sm btn-outline-danger delete-session" data-session="${s.sessionId}">
+              <i class="fa fa-trash me-1"></i>Hapus
+            </button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /**
+   * Load daftar sessions
+   */
+  async function loadSessions() {
+    try {
+      const res = await fetch("/wa/connect/list");
+      const sessions = await res.json();
+
+      container.innerHTML = sessions.length
+        ? sessions.map((s) => renderSessionCard(s)).join("")
+        : `<div class="col-12 text-muted">Belum ada session, buat baru dulu.</div>`;
+
+      bindSessionActions();
+    } catch (err) {
+      toastr.error("Gagal memuat session", "Error");
+      console.error("❌ loadSessions error:", err);
+    }
+  }
+
+  /**
+   * Bind actions (open & delete)
+   */
+  function bindSessionActions() {
     container.querySelectorAll(".open-session").forEach((btn) => {
       btn.addEventListener("click", () => {
         const sessionId = btn.dataset.session;
@@ -52,11 +73,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    // bind tombol delete
     container.querySelectorAll(".delete-session").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const sessionId = btn.dataset.session;
-
         const confirm = await Swal.fire({
           title: "Hapus Session?",
           text: `Apakah Anda yakin ingin menghapus session ${sessionId}?`,
@@ -70,11 +89,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (confirm.isConfirmed) {
           try {
-            const res = await fetch(`/wa/delete/${sessionId}`, { method: "DELETE" });
+            const res = await fetch(`/wa/${sessionId}`, { method: "DELETE" });
             const json = await res.json();
             if (json.success) {
               toastr.success(`Session ${sessionId} berhasil dihapus`, "Deleted");
-              loadSessions();
+
+              // animasi fade-out
+              const el = document.getElementById(`session-${sessionId}`);
+              if (el) {
+                el.style.transition = "all .4s ease";
+                el.style.opacity = "0";
+                el.style.transform = "scale(0.9)";
+                setTimeout(() => el.remove(), 400);
+              }
             } else {
               toastr.error(json.error || "Gagal menghapus session", "Error");
             }
@@ -85,20 +112,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     });
-  }
-
-  /**
-   * Load daftar sessions dari server
-   */
-  async function loadSessions() {
-    try {
-      const res = await fetch("/wa/connect/list");
-      const sessions = await res.json();
-      renderSessions(sessions);
-    } catch (err) {
-      toastr.error("Gagal memuat session", "Error");
-      console.error("❌ loadSessions error:", err);
-    }
   }
 
   /**
@@ -114,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /**
-   * Form: Buat Session baru (QR)
+   * Form: Buat Session baru
    */
   const newSessionForm = document.getElementById("newSessionForm");
   if (newSessionForm) {
@@ -122,22 +135,27 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const data = {
         sessionId: document.getElementById("sessionId").value.trim(),
-        label: document.getElementById("label").value.trim(),
+        label: document.getElementById("label").value.trim()
       };
 
       bootstrap.Modal.getInstance(document.getElementById("sessionModal"))?.hide();
       openQrModal(data.sessionId, "Menunggu QR ...");
 
-      const res = await fetch("/wa/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toastr.success("Session berhasil dibuat", "Berhasil");
-      } else {
-        toastr.error(json.error || "Gagal membuat session", "Error");
+      try {
+        const res = await fetch("/wa/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+        const json = await res.json();
+        if (json.success) {
+          toastr.success("Session berhasil dibuat", "Berhasil");
+          loadSessions();
+        } else {
+          toastr.error(json.error || "Gagal membuat session", "Error");
+        }
+      } catch (err) {
+        toastr.error("Server error saat membuat session", "Error");
       }
     });
   }
@@ -160,24 +178,28 @@ document.addEventListener("DOMContentLoaded", () => {
       bootstrap.Modal.getInstance(document.getElementById("sessionModal"))?.hide();
       openQrModal(sessionId, "Menunggu kode pairing...");
 
-      const res = await fetch("/wa/pairing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, phone }),
-      }).then((r) => r.json());
+      try {
+        const res = await fetch("/wa/pairing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, phone })
+        }).then((r) => r.json());
 
-      if (res.success) {
-        document.getElementById("qrContainer").innerHTML = `
-          <div class="p-3 bg-light rounded border fw-bold text-primary fs-4 animate__animated animate__fadeIn">
-            ${res.code}
-          </div>`;
-        document.getElementById("qrNote").innerText =
-          "Masukkan kode ini di WhatsApp → Perangkat Tertaut";
-        toastr.success("Pairing code berhasil dibuat", "Berhasil");
-      } else {
-        document.getElementById("qrContainer").innerHTML =
-          `<div class="text-danger">Gagal: ${res.error || "Tidak bisa generate kode"}</div>`;
-        toastr.error(res.error || "Gagal generate pairing code", "Error");
+        if (res.success) {
+          document.getElementById("qrContainer").innerHTML = `
+            <div class="p-3 bg-light rounded border fw-bold text-primary fs-4 animate__animated animate__fadeIn">
+              ${res.code}
+            </div>`;
+          document.getElementById("qrNote").innerText =
+            "Masukkan kode ini di WhatsApp → Perangkat Tertaut";
+          toastr.success("Pairing code berhasil dibuat", "Berhasil");
+        } else {
+          document.getElementById("qrContainer").innerHTML =
+            `<div class="text-danger">Gagal: ${res.error || "Tidak bisa generate kode"}</div>`;
+          toastr.error(res.error || "Gagal generate pairing code", "Error");
+        }
+      } catch (err) {
+        toastr.error("Server error saat generate pairing code", "Error");
       }
     });
   }
@@ -211,6 +233,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Init pertama kali
-  if (document.getElementById("sessions")) loadSessions();
+  // Init
+  loadSessions();
 });
