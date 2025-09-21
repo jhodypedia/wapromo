@@ -115,7 +115,7 @@ router.post("/check", authRequired, async (req, res) => {
 });
 
 /**
- * API: hapus session
+ * API: hapus session (DB + memory + folder)
  */
 router.delete("/:sessionId", authRequired, async (req, res) => {
   try {
