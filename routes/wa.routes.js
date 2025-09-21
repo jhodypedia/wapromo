@@ -36,14 +36,15 @@ router.post("/start", authRequired, async (req, res) => {
     await Session.upsert({ sessionId, label, status: "connecting" });
 
     startSession(sessionId, io);
-    res.json({ success: true });
+
+    res.json({ success: true, msg: `Session ${sessionId} dimulai` });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
 /**
- * API: generate pairing code (6 digit)
+ * API: generate pairing code (6 digit, retry 3x)
  */
 router.post("/pairing", authRequired, async (req, res) => {
   try {
@@ -52,25 +53,32 @@ router.post("/pairing", authRequired, async (req, res) => {
       return res.status(400).json({ success: false, error: "SessionId dan nomor WA wajib" });
     }
 
-    // Pastikan session sudah ada, kalau belum → buat
+    const io = req.app.get("io");
+
+    // Jika belum ada session → buat
     let session = await Session.findOne({ where: { sessionId } });
     if (!session) {
-      const io = req.app.get("io");
       await Session.create({ sessionId, label: sessionId, status: "connecting" });
       startSession(sessionId, io);
-      // beri delay biar socket siap
-      setTimeout(async () => {
+    }
+
+    // retry logic
+    async function tryGenerate(maxRetry = 3) {
+      let lastErr;
+      for (let i = 1; i <= maxRetry; i++) {
         try {
           const code = await getPairingCode(sessionId, phone);
-          res.json({ success: true, code });
+          return code;
         } catch (err) {
-          res.status(400).json({ success: false, error: err.message });
+          lastErr = err;
+          await new Promise((r) => setTimeout(r, 2000));
         }
-      }, 1500);
-    } else {
-      const code = await getPairingCode(sessionId, phone);
-      res.json({ success: true, code });
+      }
+      throw lastErr;
     }
+
+    const code = await tryGenerate(3);
+    res.json({ success: true, code });
   } catch (e) {
     res.status(400).json({ success: false, error: e.message });
   }
