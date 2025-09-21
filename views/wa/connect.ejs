@@ -1,4 +1,3 @@
-
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h4 class="mb-0">
     <i class="fa fa-whatsapp text-success me-2"></i>Koneksi WhatsApp
@@ -11,7 +10,30 @@
 </div>
 
 <div id="sessions" class="row g-3">
-  <!-- Sessions dimuat via AJAX -->
+  <% if (sessions && sessions.length > 0) { %>
+    <% sessions.forEach(s => { %>
+      <div class="col-sm-6 col-md-4 col-lg-3">
+        <div class="card h-100 clickable" data-session="<%= s.sessionId %>">
+          <div class="card-body d-flex flex-column justify-content-between">
+            <div>
+              <div class="fw-semibold"><%= s.label || s.sessionId %></div>
+              <div class="small text-muted">ID: <%= s.sessionId %></div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <span class="badge bg-<%= s.status === "connected" ? "success" : (s.status === "reconnecting" ? "warning" : "secondary") %>">
+                <%= s.status %>
+              </span>
+              <button class="btn btn-sm btn-outline-danger delete-session" data-id="<%= s.sessionId %>">
+                <i class="fa fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  <% } else { %>
+    <div class="col-12 text-muted">Belum ada session, buat baru dulu.</div>
+  <% } %>
 </div>
 
 <!-- Modal Input: Tambah Session / Pairing -->
