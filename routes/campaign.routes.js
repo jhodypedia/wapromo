@@ -19,7 +19,9 @@ router.get("/", authRequired, async (req, res) => {
       ],
       order: [["id", "DESC"]]
     });
-    res.render("campaign/list", { campaigns });
+    const templates = await Template.findAll({ where: { isActive: true } });
+    const sessions = await Session.findAll();
+    res.render("campaign/list", { campaigns, templates, sessions });
   } catch (e) {
     res.status(500).send(e.message);
   }
@@ -46,7 +48,54 @@ router.get("/list", authRequired, async (req, res) => {
 });
 
 /**
- * API: Detail campaign + target
+ * API: Buat campaign baru
+ */
+router.post("/create", authRequired, async (req, res) => {
+  try {
+    const { name, templateId, sessionId, numbers, speedMinMs, speedMaxMs } = req.body;
+
+    const session = await Session.findByPk(sessionId);
+    if (!session) return res.json({ success: false, error: "Session tidak ditemukan" });
+
+    const sock = getSession(session.sessionId);
+    if (!sock) return res.json({ success: false, error: "Session WA belum aktif" });
+
+    // buat campaign
+    const cp = await Campaign.create({
+      name,
+      templateId,
+      sessionId: session.id,
+      userId: req.session.user.id,
+      speedMinMs: parseInt(speedMinMs) || 5000,
+      speedMaxMs: parseInt(speedMaxMs) || 15000,
+      status: "idle"
+    });
+
+    const rows = (numbers || "")
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    for (const r of rows) {
+      const t = await Target.create({ campaignId: cp.id, number: r, status: "pending" });
+      try {
+        const resu = await sock.onWhatsApp(r.replace(/\D/g, "") + "@s.whatsapp.net");
+        t.status = resu?.[0]?.exists ? "valid" : "invalid";
+        await t.save();
+      } catch {
+        t.status = "invalid";
+        await t.save();
+      }
+    }
+
+    res.json({ success: true, id: cp.id });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * API: Detail campaign
  */
 router.get("/:id/detail", authRequired, async (req, res) => {
   try {
@@ -68,7 +117,7 @@ router.get("/:id/detail", authRequired, async (req, res) => {
 });
 
 /**
- * API: Delete campaign + target
+ * API: Delete campaign
  */
 router.delete("/:id", authRequired, async (req, res) => {
   try {
