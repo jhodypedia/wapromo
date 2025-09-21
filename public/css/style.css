@@ -50,6 +50,7 @@ body {
   background: linear-gradient(135deg, #fff, rgba(13,110,253,.06));
   border: 1px solid #eef2ff;
   box-shadow: var(--shadow);
+  border-radius: var(--radius);
 }
 
 /* CARD */
@@ -82,6 +83,20 @@ body {
   transform: scale(1.1) rotate(5deg);
 }
 
+/* CARD FOOTER (Open/Delete Button) */
+.card-footer {
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem;
+}
+.card-footer .btn {
+  flex: 1;
+  font-size: .8rem;
+  padding: .35rem .5rem;
+}
+
 /* BUTTONS */
 .btn {
   font-weight: 500;
@@ -104,6 +119,15 @@ body {
 .btn-outline-primary:hover {
   background: var(--primary);
   color: #fff;
+}
+.btn-outline-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn-outline-danger:hover {
+  background: var(--danger);
+  color: #fff;
+  animation: shake .3s;
 }
 
 /* BADGE */
@@ -226,6 +250,12 @@ body {
 @keyframes popIn {
   0% { transform: scale(.7); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  50% { transform: translateX(2px); }
+  75% { transform: translateX(-2px); }
 }
 
 /* RESPONSIVE */
