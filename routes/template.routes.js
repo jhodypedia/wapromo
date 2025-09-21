@@ -1,8 +1,9 @@
+// routes/template.routes.js
 import express from "express";
 import { authRequired } from "../middlewares/auth.js";
 import {
   listTemplates,
-  createTemplateForm,
+  getTemplate,
   createTemplate,
   updateTemplate,
   deleteTemplate
@@ -10,10 +11,13 @@ import {
 
 const router = express.Router();
 
+// EJS render
 router.get("/", authRequired, listTemplates);
-router.get("/new", authRequired, createTemplateForm);
-router.post("/new", authRequired, createTemplate);
-router.put("/:id", authRequired, updateTemplate);   // ✅ update
-router.delete("/:id", authRequired, deleteTemplate); // ✅ delete
+
+// API JSON
+router.get("/:id", authRequired, getTemplate);
+router.post("/", authRequired, createTemplate);
+router.put("/:id", authRequired, updateTemplate);
+router.delete("/:id", authRequired, deleteTemplate);
 
 export default router;
