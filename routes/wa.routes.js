@@ -8,8 +8,9 @@ const router = express.Router();
 /**
  * Halaman connect WhatsApp (UI EJS)
  */
-router.get("/connect", authRequired, (req, res) => {
-  res.render("wa/connect");
+router.get("/connect", authRequired, async (req, res) => {
+  const sessions = await Session.findAll({ order: [["id", "DESC"]] });
+  res.render("wa/connect", { sessions });
 });
 
 /**
@@ -25,26 +26,32 @@ router.get("/connect/list", authRequired, async (req, res) => {
 });
 
 /**
- * API: start session baru (QR)
+ * API: start session baru (QR / Pairing)
  */
 router.post("/start", authRequired, async (req, res) => {
   try {
-    const { sessionId, label } = req.body;
-    if (!sessionId) return res.status(400).json({ success: false, error: "SessionId wajib" });
+    const { sessionId, label, mode } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ success: false, error: "SessionId wajib" });
+    }
 
     const io = req.app.get("io");
-    await Session.upsert({ sessionId, label, status: "connecting" });
+    const selectedMode = mode === "pairing" ? "pairing" : "qr";
 
-    startSession(sessionId, io);
+    // Simpan / update ke DB
+    await Session.upsert({ sessionId, label, mode: selectedMode, status: "connecting" });
 
-    res.json({ success: true, msg: `Session ${sessionId} dimulai` });
+    // Jalankan WA socket
+    startSession(sessionId, io, selectedMode, label);
+
+    res.json({ success: true, msg: `Session ${sessionId} dimulai dengan mode ${selectedMode}` });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
 /**
- * API: generate pairing code (6 digit, retry 3x)
+ * API: generate pairing code (8 digit)
  */
 router.post("/pairing", authRequired, async (req, res) => {
   try {
@@ -55,14 +62,19 @@ router.post("/pairing", authRequired, async (req, res) => {
 
     const io = req.app.get("io");
 
-    // Jika belum ada session → buat
+    // Pastikan session ada
     let session = await Session.findOne({ where: { sessionId } });
     if (!session) {
-      await Session.create({ sessionId, label: sessionId, status: "connecting" });
-      startSession(sessionId, io);
+      session = await Session.create({
+        sessionId,
+        label: sessionId,
+        mode: "pairing",
+        status: "connecting"
+      });
+      startSession(sessionId, io, "pairing", sessionId);
     }
 
-    // retry logic
+    // Retry generate pairing code
     async function tryGenerate(maxRetry = 3) {
       let lastErr;
       for (let i = 1; i <= maxRetry; i++) {
