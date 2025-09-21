@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import { initDB, sequelize } from "./config/db.js";
 
 import authRoutes from "./routes/auth.routes.js";
+import generateRoutes from "./routes/generate.routes.js";
 import waRoutes from "./routes/wa.routes.js";
 import templateRoutes from "./routes/template.routes.js";
 import campaignRoutes from "./routes/campaign.routes.js";
@@ -47,6 +48,7 @@ app.use("/auth", authRoutes);
 app.use("/wa", waRoutes);
 app.use("/templates", templateRoutes);
 app.use("/campaigns", campaignRoutes);
+app.use("/generate", generateRoutes);
 
 // dashboard
 app.get("/", authRequired, (req, res) => res.render("dashboard"));
