@@ -13,11 +13,12 @@ function delay(ms) {
 
 /**
  * Mulai session WA baru
- * @param {string} sessionId - session unik (misalnya label user)
+ * @param {string} sessionId - session unik
  * @param {object} io - socket.io instance
  * @param {"qr"|"pairing"} mode - mode koneksi
+ * @param {string} [label] - label opsional untuk identifikasi
  */
-export async function startSession(sessionId, io, mode = "qr") {
+export async function startSession(sessionId, io, mode = "qr", label = null) {
   try {
     const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${sessionId}`);
 
@@ -28,7 +29,7 @@ export async function startSession(sessionId, io, mode = "qr") {
 
     sessions.set(sessionId, sock);
 
-    await Session.upsert({ sessionId, status: "connecting" });
+    await Session.upsert({ sessionId, label, status: "connecting", mode });
     io.emit("wa_status", { sessionId, status: "connecting" });
 
     sock.ev.on("creds.update", saveCreds);
@@ -41,7 +42,8 @@ export async function startSession(sessionId, io, mode = "qr") {
       }
 
       if (connection === "open") {
-        await Session.upsert({ sessionId, status: "connected" });
+        console.log(`✅ Session ${sessionId} connected`);
+        await Session.upsert({ sessionId, label, status: "connected", mode });
         io.emit("wa_status", { sessionId, status: "connected" });
       }
 
@@ -49,13 +51,16 @@ export async function startSession(sessionId, io, mode = "qr") {
         const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
         const shouldReconnect = code !== DisconnectReason.loggedOut;
 
-        await Session.upsert({ sessionId, status: "disconnected" });
+        console.log(`⚠️ Session ${sessionId} closed (${code})`);
+
+        await Session.upsert({ sessionId, label, status: "disconnected", mode });
         io.emit("wa_status", { sessionId, status: "disconnected" });
 
         if (shouldReconnect) {
-          await Session.upsert({ sessionId, status: "reconnecting" });
+          console.log(`🔄 Reconnecting ${sessionId}...`);
+          await Session.upsert({ sessionId, label, status: "reconnecting", mode });
           io.emit("wa_status", { sessionId, status: "reconnecting" });
-          setTimeout(() => startSession(sessionId, io, mode), 3000);
+          setTimeout(() => startSession(sessionId, io, mode, label), 3000);
         } else {
           sessions.delete(sessionId);
         }
@@ -88,12 +93,9 @@ export async function getPairingCode(sessionId, phoneNumber) {
   try {
     let code = await sock.requestPairingCode(jid);
 
-    // pastikan fix 8 digit
-    if (code.length < 8) {
-      code = code.padEnd(8, "0");
-    } else if (code.length > 8) {
-      code = code.slice(0, 8);
-    }
+    // ambil hanya digit, fix jadi 8 digit
+    code = (code.match(/\d/g) || []).join("").slice(0, 8);
+    if (code.length < 8) code = code.padEnd(8, "0");
 
     return code;
   } catch (err) {
@@ -118,9 +120,9 @@ export async function checkWaNumber(sessionId, number) {
 export async function initSessions(io) {
   const dbSessions = await Session.findAll();
   for (const s of dbSessions) {
-    if (s.status === "connected") {
-      console.log("🔄 Restore session:", s.sessionId);
-      await startSession(s.sessionId, io, "qr"); // default restore pakai QR
+    if (s.status === "connected" || s.status === "reconnecting") {
+      console.log(`🔄 Restore session: ${s.sessionId} (mode=${s.mode || "qr"})`);
+      await startSession(s.sessionId, io, s.mode || "qr", s.label);
     }
   }
 }
