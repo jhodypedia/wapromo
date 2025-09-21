@@ -20,7 +20,9 @@ router.get("/", authRequired, async (req, res) => {
         ],
         order: [["id", "DESC"]]
       }),
-      Template.findAll({ where: { isActive: true } }),  // ✅ hanya template aktif
+      Template.findAll({
+  attributes: ["id", "name", "body", "isActive"]
+}),  // ✅ hanya template aktif
       Session.findAll()
     ]);
 
