@@ -25,7 +25,7 @@
         <tr id="template-<%= t.id %>">
           <td><%= i+1 %></td>
           <td class="fw-semibold"><%= t.title %></td>
-          <td style="white-space:pre-wrap; max-width:250px;"><%= t.body.length > 60 ? t.body.substring(0,60)+'...' : t.body %></td>
+          <td style="white-space:pre-wrap; max-width:300px;"><%= t.body %></td>
           <td>
             <% if (t.link) { %>
               <a href="<%= t.link %>" target="_blank"><i class="fa fa-link me-1"></i>Link</a>
@@ -102,43 +102,6 @@
   </div>
 </div>
 
-<!-- Modal Edit -->
-<div class="modal fade" id="editTemplateModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header border-0">
-        <h5 class="modal-title"><i class="fa fa-edit text-warning me-2"></i>Edit Template</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="editTemplateForm">
-          <input type="hidden" id="editTemplateId">
-          <div class="mb-3">
-            <label class="form-label">Judul</label>
-            <input type="text" id="editTitle" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Isi Pesan</label>
-            <textarea id="editBody" class="form-control" rows="4" required></textarea>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Link</label>
-            <input type="text" id="editLink" class="form-control">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Status</label>
-            <select id="editStatus" class="form-select">
-              <option value="true">Aktif</option>
-              <option value="false">Nonaktif</option>
-            </select>
-          </div>
-          <button class="btn btn-warning w-100"><i class="fa fa-save me-2"></i>Update</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Modal Detail -->
 <div class="modal fade" id="detailTemplateModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -184,66 +147,6 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       toastr.error("Gagal menambahkan template");
     }
-  });
-
-  // Edit
-  document.querySelectorAll(".edit-template").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      document.getElementById("editTemplateId").value = btn.dataset.id;
-      document.getElementById("editTitle").value = btn.dataset.title;
-      document.getElementById("editBody").value = btn.dataset.body;
-      document.getElementById("editLink").value = btn.dataset.link || "";
-      document.getElementById("editStatus").value = btn.dataset.active === "true" ? "true" : "false";
-      new bootstrap.Modal(document.getElementById("editTemplateModal")).show();
-    });
-  });
-
-  document.getElementById("editTemplateForm").addEventListener("submit", async e=>{
-    e.preventDefault();
-    const id = document.getElementById("editTemplateId").value;
-    const data = {
-      title: document.getElementById("editTitle").value,
-      body: document.getElementById("editBody").value,
-      link: document.getElementById("editLink").value,
-      isActive: document.getElementById("editStatus").value
-    };
-    const res = await fetch(`/templates/${id}`, {
-      method:"PUT",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify(data)
-    });
-    const json = await res.json();
-    if (json.success) {
-      toastr.success("Template diupdate");
-      setTimeout(()=>location.reload(),800);
-    } else {
-      toastr.error(json.error || "Gagal update");
-    }
-  });
-
-  // Delete
-  document.querySelectorAll(".delete-template").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
-      const id = btn.dataset.id;
-      const confirmDel = await Swal.fire({
-        title:"Hapus Template?",
-        text:"Data akan terhapus permanen",
-        icon:"warning",
-        showCancelButton:true,
-        confirmButtonText:"Ya, hapus",
-        cancelButtonText:"Batal"
-      });
-      if (confirmDel.isConfirmed) {
-        const res = await fetch(`/templates/${id}`, { method:"DELETE" });
-        const json = await res.json();
-        if (json.success) {
-          toastr.success("Template dihapus");
-          setTimeout(()=>location.reload(),800);
-        } else {
-          toastr.error(json.error || "Gagal menghapus");
-        }
-      }
-    });
   });
 
   // Detail
