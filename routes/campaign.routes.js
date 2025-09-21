@@ -20,7 +20,7 @@ router.get("/", authRequired, async (req, res) => {
         ],
         order: [["id", "DESC"]]
       }),
-      Template.findAll({ where: { isActive: true } }), // ambil hanya aktif
+      Template.findAll({ where: { isActive: true } }),
       Session.findAll()
     ]);
 
@@ -31,7 +31,42 @@ router.get("/", authRequired, async (req, res) => {
 });
 
 /**
- * API: list campaign (JSON, untuk AJAX refresh)
+ * API: Create campaign
+ */
+router.post("/new", authRequired, async (req, res) => {
+  try {
+    const { name, templateId, sessionId, numbers, speedMinMs, speedMaxMs } = req.body;
+
+    const cp = await Campaign.create({
+      name,
+      userId: req.session.user.id,
+      templateId,
+      sessionId,
+      status: "idle",
+      speedMinMs: parseInt(speedMinMs) || 5000,
+      speedMaxMs: parseInt(speedMaxMs) || 15000
+    });
+
+    // simpan target (split per baris)
+    if (numbers) {
+      const rows = numbers.split("\n").map((n) => n.trim()).filter((n) => n);
+      for (const num of rows) {
+        await Target.create({
+          campaignId: cp.id,
+          number: num,
+          status: "valid"
+        });
+      }
+    }
+
+    res.json({ success: true, msg: "Campaign berhasil dibuat" });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * API: list campaign (JSON)
  */
 router.get("/list", authRequired, async (req, res) => {
   try {
@@ -93,7 +128,7 @@ router.delete("/:id", authRequired, async (req, res) => {
 });
 
 /**
- * Jalankan campaign (blast pesan)
+ * Jalankan campaign
  */
 router.post("/:id/run", authRequired, async (req, res) => {
   try {
