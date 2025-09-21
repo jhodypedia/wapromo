@@ -13,7 +13,7 @@ Campaign.belongsTo(Template, { foreignKey: "templateId", as: "template" });
 Campaign.hasMany(Target, { foreignKey: "campaignId", as: "targets" });
 Target.belongsTo(Campaign, { foreignKey: "campaignId", as: "campaign" });
 
-// (opsional) kalau campaign terhubung ke session
+// Campaign terhubung ke Session
 Campaign.belongsTo(Session, { foreignKey: "sessionId", as: "session" });
 Session.hasMany(Campaign, { foreignKey: "sessionId", as: "campaigns" });
 
