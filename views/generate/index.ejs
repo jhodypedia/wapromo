@@ -33,11 +33,16 @@
 <% if (numbers && numbers.length > 0) { %>
   <div class="mb-3">
     <label class="form-label">Hasil</label>
-    <div class="input-group">
-      <textarea id="generatedNumbers" rows="10" class="form-control"><%= numbers.join("\\n").replace(/\\\\n/g, "\\n").split("\\n").join("\\n") %></textarea>
-      <button type="button" class="btn btn-outline-secondary" onclick="copyNumbers()">
-        <i class="fa fa-copy"></i> Copy
-      </button>
+    <div class="copy-wrapper">
+      <textarea id="generatedNumbers" rows="10" class="form-control"><%- numbers.join("\n") %></textarea>
+      <div class="copy-actions">
+        <button type="button" class="btn btn-outline-secondary btn-sm mb-2 w-100" onclick="copyNumbers()">
+          <i class="fa fa-copy"></i> Copy
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="downloadNumbers()">
+          <i class="fa fa-download"></i> Download
+        </button>
+      </div>
     </div>
   </div>
 <% } %>
@@ -46,8 +51,21 @@
   function copyNumbers() {
     const textarea = document.getElementById("generatedNumbers");
     textarea.select();
-    textarea.setSelectionRange(0, 99999); // mobile
+    textarea.setSelectionRange(0, 99999); // support mobile
     document.execCommand("copy");
     alert("Nomor berhasil dicopy ke clipboard!");
+  }
+
+  function downloadNumbers() {
+    const text = document.getElementById("generatedNumbers").value;
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "nomor_generate.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 </script>
