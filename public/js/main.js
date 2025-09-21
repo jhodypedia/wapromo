@@ -1,44 +1,47 @@
 document.addEventListener("DOMContentLoaded", () => {
   const socket = window.io ? io() : null;
 
-  // Konfigurasi toastr
+  // 🔔 Toastr Config
   toastr.options = {
     closeButton: true,
     progressBar: true,
     newestOnTop: true,
-    positionClass: "toast-bottom-right",
+    positionClass: "toast-top-right",
     timeOut: "3000"
   };
 
-  // Load daftar sessions
+  /**
+   * Load daftar sessions dari server
+   */
   async function loadSessions() {
     try {
       const res = await fetch("/wa/connect/list");
       const sessions = await res.json();
+
       document.getElementById("sessions").innerHTML = sessions
         .map(
           (s) => `
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <div class="card h-100 clickable" data-session="${s.sessionId}">
-            <div class="card-body d-flex flex-column justify-content-between">
-              <div>
-                <div class="fw-semibold">${s.label || s.sessionId}</div>
-                <div class="small text-muted">ID: ${s.sessionId}</div>
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <div class="card h-100 clickable" data-session="${s.sessionId}">
+              <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                  <div class="fw-semibold">${s.label || s.sessionId}</div>
+                  <div class="small text-muted">ID: ${s.sessionId}</div>
+                </div>
+                <span class="badge mt-2 bg-${
+                  s.status === "connected"
+                    ? "success"
+                    : s.status === "reconnecting"
+                    ? "warning"
+                    : "secondary"
+                }">${s.status}</span>
               </div>
-              <span class="badge mt-2 bg-${
-                s.status === "connected"
-                  ? "success"
-                  : s.status === "reconnecting"
-                  ? "warning"
-                  : "secondary"
-              }">${s.status}</span>
             </div>
-          </div>
-        </div>`
+          </div>`
         )
         .join("");
 
-      // klik session card
+      // klik session card → buka modal QR
       document.querySelectorAll(".clickable").forEach((el) => {
         el.addEventListener("click", () => {
           const sessionId = el.dataset.session;
@@ -51,7 +54,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Buka modal utama QR/Pairing
+  /**
+   * Buka modal utama QR / Pairing
+   */
   function openQrModal(sessionId, message = "Loading...") {
     document.getElementById("qrModalTitle").innerText = `Session: ${sessionId}`;
     document.getElementById("qrContainer").innerHTML =
@@ -61,7 +66,9 @@ document.addEventListener("DOMContentLoaded", () => {
     new bootstrap.Modal(document.getElementById("qrModal")).show();
   }
 
-  // Tambah Session (QR)
+  /**
+   * Form: Buat Session baru (mode QR)
+   */
   const newSessionForm = document.getElementById("newSessionForm");
   if (newSessionForm) {
     newSessionForm.addEventListener("submit", async (e) => {
@@ -91,7 +98,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Pairing Form
+  /**
+   * Form: Pairing code (kode asli dari Baileys)
+   */
   const pairingForm = document.getElementById("pairingForm");
   if (pairingForm) {
     pairingForm.addEventListener("submit", async (e) => {
@@ -114,10 +123,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }).then((r) => r.json());
 
         if (res.success) {
-          const chars = res.code.trim().split("");
           document.getElementById("qrContainer").innerHTML = `
-            <div class="pairing-code-flex">
-              ${chars.map((c) => `<span class="pair-box">${c}</span>`).join("")}
+            <div class="p-3 bg-light rounded border fw-bold text-primary fs-4 animate__animated animate__fadeIn">
+              ${res.code}
             </div>`;
           document.getElementById("qrNote").innerText =
             "Masukkan kode ini di WhatsApp → Perangkat Tertaut";
@@ -131,8 +139,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Socket: QR update
+  /**
+   * Socket.io listener
+   */
   if (socket) {
+    // update QR code
     socket.on("wa_qr", ({ sessionId, qr }) => {
       const modal = document.getElementById("qrModal");
       const activeSession = modal.getAttribute("data-session");
@@ -146,6 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
+    // update status
     socket.on("wa_status", ({ sessionId, status }) => {
       loadSessions();
       if (status === "connected") {
@@ -158,6 +170,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Init
+  // Init pertama kali
   if (document.getElementById("sessions")) loadSessions();
 });
