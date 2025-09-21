@@ -1,16 +1,16 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h4 class="mb-0"><i class="fa fa-message text-primary me-2"></i>Template Pesan</h4>
-  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#templateModal">
+  <button class="btn btn-primary" id="addTemplateBtn">
     <i class="fa fa-plus me-2"></i>Tambah Template
   </button>
 </div>
 
 <div class="card shadow-sm">
-  <div class="card-body table-responsive">
-    <table id="templateTable" class="table table-hover align-middle w-100">
-      <thead class="table-light">
+  <div class="card-body">
+    <table id="templateTable" class="table align-middle w-100">
+      <thead>
         <tr>
-          <th style="width:40px">#</th>
+          <th>#</th>
           <th>Judul</th>
           <th>Isi</th>
           <th>Link</th>
@@ -29,7 +29,7 @@
                 <a href="<%= t.link %>" target="_blank" class="text-decoration-none">
                   <i class="fa fa-link me-1"></i>Link
                 </a>
-              <% } %>
+              <% } else { %>-<% } %>
             </td>
             <td>
               <span class="badge <%= t.isActive ? 'bg-success' : 'bg-secondary' %>">
@@ -38,10 +38,10 @@
             </td>
             <td>
               <div class="btn-group btn-group-sm" role="group">
-                <button class="btn btn-outline-warning edit-template" data-id="<%= t.id %>" title="Edit">
+                <button class="btn btn-outline-warning edit-template" title="Edit">
                   <i class="fa fa-pen"></i>
                 </button>
-                <button class="btn btn-outline-danger delete-template" data-id="<%= t.id %>" title="Hapus">
+                <button class="btn btn-outline-danger delete-template" title="Hapus">
                   <i class="fa fa-trash"></i>
                 </button>
               </div>
@@ -62,7 +62,7 @@
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <input type="hidden" name="id" id="templateId">
+        <input type="hidden" id="templateId">
         <div class="mb-3">
           <label class="form-label">Judul</label>
           <input type="text" class="form-control" id="title" required>
@@ -93,11 +93,10 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // Init DataTables dengan global style
-  $('#templateTable').DataTable({
+  // Init DataTables
+  const table = $('#templateTable').DataTable({
     responsive: true,
     pageLength: 5,
-    lengthMenu: [5, 10, 25, 50],
     language: {
       search: "Cari:",
       lengthMenu: "Tampilkan _MENU_ data",
@@ -107,8 +106,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Tambah / Edit Template
-  document.getElementById("templateForm").addEventListener("submit", async (e) => {
+  const modal = new bootstrap.Modal(document.getElementById("templateModal"));
+  const form = document.getElementById("templateForm");
+
+  // Tambah Template
+  document.getElementById("addTemplateBtn").addEventListener("click", () => {
+    form.reset();
+    document.getElementById("templateId").value = "";
+    document.getElementById("modalTitle").innerText = "Tambah Template";
+    modal.show();
+  });
+
+  // Submit Form (Tambah/Edit)
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const id = document.getElementById("templateId").value;
     const payload = {
@@ -125,37 +135,56 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify(payload)
       });
       const json = await res.json();
-      if (json.success || res.redirected || res.ok) {
-        Swal.fire("Berhasil", `Template ${id ? "diperbarui" : "ditambahkan"}`, "success")
-          .then(() => location.reload());
+
+      if (json.success) {
+        Swal.fire("Berhasil", `Template ${id ? "diperbarui" : "ditambahkan"}`, "success");
+
+        if (id) {
+          // update row
+          const row = $(`#templateTable tr[data-id="${id}"]`);
+          row.find("td:eq(1)").text(json.template.title);
+          row.find("td:eq(2)").text(json.template.body);
+          row.find("td:eq(3)").html(json.template.link ? `<a href="${json.template.link}" target="_blank"><i class="fa fa-link me-1"></i>Link</a>` : "-");
+          row.find("td:eq(4)").html(`<span class="badge ${json.template.isActive ? 'bg-success':'bg-secondary'}">${json.template.isActive ? 'Aktif':'Nonaktif'}</span>`);
+        } else {
+          // add new row
+          const newRow = table.row.add([
+            table.rows().count() + 1,
+            json.template.title,
+            json.template.body,
+            json.template.link ? `<a href="${json.template.link}" target="_blank"><i class="fa fa-link me-1"></i>Link</a>` : "-",
+            `<span class="badge ${json.template.isActive ? 'bg-success':'bg-secondary'}">${json.template.isActive ? 'Aktif':'Nonaktif'}</span>`,
+            `<div class="btn-group btn-group-sm" role="group">
+              <button class="btn btn-outline-warning edit-template" title="Edit"><i class="fa fa-pen"></i></button>
+              <button class="btn btn-outline-danger delete-template" title="Hapus"><i class="fa fa-trash"></i></button>
+            </div>`
+          ]).draw().node();
+          $(newRow).attr("data-id", json.template.id);
+        }
+
+        modal.hide();
       } else {
         Swal.fire("Error", json.error || "Gagal simpan", "error");
       }
     } catch (err) {
-      Swal.fire("Error", "Server error saat simpan", "error");
+      Swal.fire("Error", "Server error", "error");
     }
   });
 
-  // Edit Template
+  // Edit
   $('#templateTable').on('click', '.edit-template', function () {
     const tr = $(this).closest('tr');
     const id = tr.data('id');
-    const title = tr.children().eq(1).text();
-    const body  = tr.children().eq(2).text();
-    const link  = tr.children().eq(3).find('a').attr('href') || "";
-    const status = tr.find("span.badge").text().trim() === "Aktif" ? "true" : "false";
-
-    $('#templateId').val(id);
-    $('#title').val(title);
-    $('#body').val(body);
-    $('#link').val(link);
-    $('#isActive').val(status);
-
-    $('#modalTitle').text("Edit Template");
-    new bootstrap.Modal(document.getElementById("templateModal")).show();
+    document.getElementById("templateId").value = id;
+    document.getElementById("title").value = tr.children().eq(1).text();
+    document.getElementById("body").value = tr.children().eq(2).text();
+    document.getElementById("link").value = tr.children().eq(3).find("a").attr("href") || "";
+    document.getElementById("isActive").value = tr.find("span.badge").text().trim() === "Aktif" ? "true" : "false";
+    document.getElementById("modalTitle").innerText = "Edit Template";
+    modal.show();
   });
 
-  // Delete Template
+  // Delete
   $('#templateTable').on('click', '.delete-template', async function () {
     const tr = $(this).closest('tr');
     const id = tr.data('id');
@@ -168,19 +197,21 @@ document.addEventListener("DOMContentLoaded", () => {
       confirmButtonText: "Ya, hapus",
       cancelButtonText: "Batal"
     });
+
     if (!confirm.isConfirmed) return;
 
     try {
       const res = await fetch(`/templates/${id}`, { method: "DELETE" });
       const json = await res.json();
+
       if (json.success) {
-        Swal.fire("Berhasil", "Template dihapus", "success")
-          .then(() => location.reload());
+        Swal.fire("Berhasil", "Template dihapus", "success");
+        table.row(tr).remove().draw();
       } else {
-        Swal.fire("Error", json.error || "Gagal hapus template", "error");
+        Swal.fire("Error", json.error || "Gagal hapus", "error");
       }
     } catch (err) {
-      Swal.fire("Error", "Server error saat hapus", "error");
+      Swal.fire("Error", "Server error", "error");
     }
   });
 });
