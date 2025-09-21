@@ -1,6 +1,6 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h4 class="mb-0"><i class="fa fa-message text-primary me-2"></i>Template Pesan</h4>
-  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#templateModal">
+  <button id="btnAddTemplate" class="btn btn-primary">
     <i class="fa fa-plus me-2"></i>Tambah Template
   </button>
 </div>
@@ -21,21 +21,23 @@
         </thead>
         <tbody>
           <% templates.forEach((t,i)=>{ %>
-            <tr data-id="<%= t.id %>">
-              <td><%= i+1 %></td>
-              <td><%= t.title %></td>
-              <td style="white-space:pre-wrap; max-width:300px"><%= t.body %></td>
-              <td><a href="<%= t.link %>" target="_blank"><%= t.link %></a></td>
-              <td>
-                <span class="badge <%= t.isActive ? 'bg-success' : 'bg-secondary' %>">
-                  <%= t.isActive ? 'Aktif' : 'Nonaktif' %>
-                </span>
-              </td>
-              <td class="d-flex gap-1">
-                <button class="btn btn-sm btn-warning edit-template"><i class="fa fa-edit"></i></button>
-                <button class="btn btn-sm btn-danger delete-template"><i class="fa fa-trash"></i></button>
-              </td>
-            </tr>
+          <tr data-id="<%= t.id %>">
+            <td><%= i+1 %></td>
+            <td><%= t.title %></td>
+            <td style="white-space:pre-wrap; max-width:280px"><%= t.body %></td>
+            <td><% if (t.link) { %><a href="<%= t.link %>" target="_blank"><%= t.link %></a><% } %></td>
+            <td>
+              <span class="badge <%= t.isActive ? 'bg-success' : 'bg-secondary' %>">
+                <%= t.isActive ? 'Aktif' : 'Nonaktif' %>
+              </span>
+            </td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-warning edit-template"><i class="fa fa-edit"></i></button>
+                <button class="btn btn-danger delete-template"><i class="fa fa-trash"></i></button>
+              </div>
+            </td>
+          </tr>
           <% }) %>
         </tbody>
       </table>
@@ -43,7 +45,7 @@
   </div>
 </div>
 
-<!-- Modal Tambah/Edit Template -->
+<!-- Modal Create/Edit -->
 <div class="modal fade" id="templateModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -98,24 +100,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  const modalEl = document.getElementById("templateModal");
-  const modal = new bootstrap.Modal(modalEl);
+  const modal = new bootstrap.Modal(document.getElementById("templateModal"));
   const form = document.getElementById("templateForm");
+  const modalTitle = document.getElementById("modalTitle");
+
   const idInput = document.getElementById("templateId");
   const titleInput = document.getElementById("title");
   const bodyInput = document.getElementById("body");
   const linkInput = document.getElementById("link");
   const isActiveInput = document.getElementById("isActive");
-  const modalTitle = document.getElementById("modalTitle");
 
-  // Tambah baru
-  document.querySelector('[data-bs-target="#templateModal"]').addEventListener("click", () => {
+  // Tambah
+  document.getElementById("btnAddTemplate").addEventListener("click", () => {
     form.reset();
     idInput.value = "";
     modalTitle.textContent = "Tambah Template";
+    modal.show();
   });
 
-  // Submit form (create/update)
+  // Submit (create/update)
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const id = idInput.value;
@@ -136,9 +139,8 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const json = await res.json();
       if (json.success) {
-        Swal.fire("Berhasil", json.msg, "success");
-        modal.hide();
-        location.reload(); // refresh tabel
+        Swal.fire("Berhasil", id ? "Template diperbarui" : "Template ditambahkan", "success")
+          .then(() => location.reload());
       } else {
         Swal.fire("Error", json.error || "Gagal simpan template", "error");
       }
@@ -147,10 +149,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Edit template
-  document.querySelectorAll(".edit-template").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const id = btn.closest("tr").dataset.id;
+  // Delegation: Edit
+  document.body.addEventListener("click", async (e) => {
+    if (e.target.closest(".edit-template")) {
+      const row = e.target.closest("tr");
+      const id = row.dataset.id;
       const res = await fetch(`/templates/${id}`);
       const json = await res.json();
       if (json.success) {
@@ -165,13 +168,14 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         Swal.fire("Error", json.error || "Gagal ambil data", "error");
       }
-    });
+    }
   });
 
-  // Delete template
-  document.querySelectorAll(".delete-template").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const id = btn.closest("tr").dataset.id;
+  // Delegation: Delete
+  document.body.addEventListener("click", async (e) => {
+    if (e.target.closest(".delete-template")) {
+      const row = e.target.closest("tr");
+      const id = row.dataset.id;
       const confirm = await Swal.fire({
         title: "Hapus Template?",
         text: "Data ini tidak bisa dikembalikan.",
@@ -184,13 +188,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const res = await fetch(`/templates/${id}`, { method: "DELETE" });
         const json = await res.json();
         if (json.success) {
-          Swal.fire("Deleted", json.msg, "success");
-          location.reload();
+          Swal.fire("Deleted", "Template berhasil dihapus", "success")
+            .then(() => location.reload());
         } else {
           Swal.fire("Error", json.error || "Gagal hapus", "error");
         }
       }
-    });
+    }
   });
 });
 </script>
