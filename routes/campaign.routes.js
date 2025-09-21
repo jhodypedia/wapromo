@@ -20,11 +20,52 @@ router.get("/", authRequired, async (req, res) => {
         ],
         order: [["id", "DESC"]]
       }),
-      Template.findAll(),   // ✅ ambil semua template (tanpa filter)
+      Template.findAll({ where: { isActive: true } }),  // ✅ hanya template aktif
       Session.findAll()
     ]);
 
     res.render("campaign/list", { campaigns, templates, sessions });
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
+
+/**
+ * Create campaign baru
+ */
+router.post("/new", authRequired, async (req, res) => {
+  try {
+    const { name, templateId, sessionId, numbers, speedMinMs, speedMaxMs } = req.body;
+
+    if (!name || !templateId || !sessionId) {
+      return res.status(400).send("Nama, template, dan session wajib diisi");
+    }
+
+    const cp = await Campaign.create({
+      name,
+      templateId,
+      sessionId,
+      userId: req.session.user.id,
+      speedMinMs: parseInt(speedMinMs) || 5000,
+      speedMaxMs: parseInt(speedMaxMs) || 15000,
+      status: "idle"
+    });
+
+    // simpan target numbers
+    const rows = (numbers || "")
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    for (const r of rows) {
+      await Target.create({
+        campaignId: cp.id,
+        number: r,
+        status: "pending"
+      });
+    }
+
+    res.redirect("/campaigns");
   } catch (e) {
     res.status(500).send(e.message);
   }
