@@ -28,13 +28,18 @@ document.addEventListener("DOMContentLoaded", () => {
                   <div class="fw-semibold">${s.label || s.sessionId}</div>
                   <div class="small text-muted">ID: ${s.sessionId}</div>
                 </div>
-                <span class="badge mt-2 bg-${
-                  s.status === "connected"
-                    ? "success"
-                    : s.status === "reconnecting"
-                    ? "warning"
-                    : "secondary"
-                }">${s.status}</span>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                  <span class="badge bg-${
+                    s.status === "connected"
+                      ? "success"
+                      : s.status === "reconnecting"
+                      ? "warning"
+                      : "secondary"
+                  }">${s.status}</span>
+                  <button class="btn btn-sm btn-outline-danger delete-session" data-id="${s.sessionId}">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>`
@@ -46,6 +51,49 @@ document.addEventListener("DOMContentLoaded", () => {
         el.addEventListener("click", () => {
           const sessionId = el.dataset.session;
           openQrModal(sessionId, "Menunggu QR ...");
+        });
+      });
+
+      // klik delete button
+      document.querySelectorAll(".delete-session").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation(); // biar gak trigger modal
+
+          const sessionId = btn.dataset.id;
+
+          // toastr konfirmasi
+          const $toast = toastr.warning(
+            `<div>Hapus session <b>${sessionId}</b>?<br/>
+             <button type="button" class="btn btn-sm btn-danger mt-2 me-2" id="confirmDel">Yes</button>
+             <button type="button" class="btn btn-sm btn-secondary mt-2" id="cancelDel">No</button>
+             </div>`,
+            "Konfirmasi",
+            { timeOut: 0, extendedTimeOut: 0, tapToDismiss: false }
+          );
+
+          // binding tombol di toastr
+          if ($toast) {
+            $toast.delegate("#confirmDel", "click", async () => {
+              toastr.clear($toast);
+
+              try {
+                const res = await fetch(`/wa/${sessionId}`, { method: "DELETE" }).then((r) => r.json());
+                if (res.success) {
+                  toastr.success(`Session ${sessionId} dihapus`, "Deleted");
+                  loadSessions();
+                } else {
+                  toastr.error(res.error || "Gagal hapus session", "Error");
+                }
+              } catch (err) {
+                toastr.error("Terjadi kesalahan hapus session", "Error");
+                console.error("❌ Delete error:", err);
+              }
+            });
+
+            $toast.delegate("#cancelDel", "click", () => {
+              toastr.clear($toast);
+            });
+          }
         });
       });
     } catch (err) {
@@ -99,7 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /**
-   * Form: Pairing code (kode asli dari Baileys)
+   * Form: Pairing code
    */
   const pairingForm = document.getElementById("pairingForm");
   if (pairingForm) {
@@ -143,7 +191,6 @@ document.addEventListener("DOMContentLoaded", () => {
    * Socket.io listener
    */
   if (socket) {
-    // update QR code
     socket.on("wa_qr", ({ sessionId, qr }) => {
       const modal = document.getElementById("qrModal");
       const activeSession = modal.getAttribute("data-session");
@@ -157,7 +204,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // update status
     socket.on("wa_status", ({ sessionId, status }) => {
       loadSessions();
       if (status === "connected") {
