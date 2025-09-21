@@ -1,0 +1,21 @@
+<% layout('layouts/main') %>
+<div class="card"><div class="card-body">
+  <h5 class="mb-3"><i class="fa fa-plus me-2"></i>Buat Campaign</h5>
+  <% if (typeof error !== 'undefined' && error) { %><script>Swal.fire({icon:'error',title:'Oops',text:'<%= error %>'});</script><% } %>
+  <form method="POST" action="/campaigns/new">
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label">Nama Campaign</label><input name="name" class="form-control" required></div>
+      <div class="col-md-3"><label class="form-label">Session ID</label><input name="sessionId" class="form-control" placeholder="session-1" required></div>
+      <div class="col-md-3">
+        <label class="form-label">Template</label>
+        <select name="templateId" class="form-select" required>
+          <% templates.forEach(t => { %><option value="<%= t.id %>"><%= t.title %></option><% }) %>
+        </select>
+      </div>
+      <div class="col-md-3"><label class="form-label">Delay Min (ms)</label><input name="speedMinMs" type="number" class="form-control" value="5000"></div>
+      <div class="col-md-3"><label class="form-label">Delay Max (ms)</label><input name="speedMaxMs" type="number" class="form-control" value="15000"></div>
+      <div class="col-12"><label class="form-label">Daftar Nomor (1/baris, format 62...)</label><textarea name="numbers" rows="6" class="form-control" placeholder="62812xxxxxxx&#10;62895xxxxxxx"></textarea></div>
+    </div>
+    <div class="mt-3 d-flex gap-2"><a href="/campaigns" class="btn btn-light">Batal</a><button class="btn btn-primary">Simpan & Verifikasi</button></div>
+  </form>
+</div></div>
