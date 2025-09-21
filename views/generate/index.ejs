@@ -2,62 +2,99 @@
   <h4 class="mb-0"><i class="fa fa-mobile text-primary me-2"></i>Generate Nomor HP</h4>
 </div>
 
-<% if (error) { %>
-  <div class="alert alert-danger"><%= error %></div>
-<% } %>
-
-<form action="/generate" method="post" class="mb-3">
-  <div class="row">
-    <div class="col-md-4 mb-3">
-      <label class="form-label">Operator</label>
-      <select name="operator" class="form-select" required>
-        <% operators.forEach(op => { %>
-          <option value="<%= op %>"><%= op.toUpperCase() %></option>
-        <% }) %>
-      </select>
-    </div>
-    <div class="col-md-4 mb-3">
-      <label class="form-label">Jumlah</label>
-      <input type="number" name="count" class="form-control" value="10" required>
-    </div>
-    <div class="col-md-4 mb-3">
-      <label class="form-label">Panjang Nomor</label>
-      <input type="number" name="length" class="form-control" value="12" required>
-    </div>
-  </div>
-  <div class="text-end">
-    <button class="btn btn-primary"><i class="fa fa-bolt me-2"></i>Generate</button>
-  </div>
-</form>
-
-<% if (numbers && numbers.length > 0) { %>
-  <div class="mb-3">
-    <label class="form-label">Hasil</label>
-    <div class="copy-wrapper">
-      <textarea id="generatedNumbers" rows="10" class="form-control"><%- numbers.join("\n") %></textarea>
-      <div class="copy-actions">
-        <button type="button" class="btn btn-outline-secondary btn-sm mb-2 w-100" onclick="copyNumbers()">
-          <i class="fa fa-copy"></i> Copy
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form id="generateForm" class="mb-3">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Operator</label>
+          <select name="operator" id="operator" class="form-select" required>
+            <% operators.forEach(op => { %>
+              <option value="<%= op %>"><%= op.toUpperCase() %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Jumlah</label>
+          <input type="number" name="count" id="count" class="form-control" value="10" required>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Panjang Nomor</label>
+          <input type="number" name="length" id="length" class="form-control" value="12" required>
+        </div>
+      </div>
+      <div class="text-end">
+        <button type="submit" class="btn btn-primary">
+          <i class="fa fa-bolt me-2"></i>Generate
         </button>
-        <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="downloadNumbers()">
-          <i class="fa fa-download"></i> Download
-        </button>
+      </div>
+    </form>
+
+    <!-- Hasil generate -->
+    <div id="resultBox" class="d-none">
+      <label class="form-label">Hasil</label>
+      <div class="copy-wrapper">
+        <textarea id="generatedNumbers" rows="10" class="form-control"></textarea>
+        <div class="copy-actions">
+          <button type="button" class="btn btn-outline-secondary btn-sm mb-2 w-100" id="copyBtn">
+            <i class="fa fa-copy"></i> Copy
+          </button>
+          <button type="button" class="btn btn-outline-primary btn-sm w-100" id="downloadBtn">
+            <i class="fa fa-download"></i> Download
+          </button>
+        </div>
       </div>
     </div>
   </div>
-<% } %>
+</div>
 
 <script>
-  function copyNumbers() {
-    const textarea = document.getElementById("generatedNumbers");
-    textarea.select();
-    textarea.setSelectionRange(0, 99999); // support mobile
-    document.execCommand("copy");
-    alert("Nomor berhasil dicopy ke clipboard!");
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("generateForm");
+  const resultBox = document.getElementById("resultBox");
+  const textarea = document.getElementById("generatedNumbers");
 
-  function downloadNumbers() {
-    const text = document.getElementById("generatedNumbers").value;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const data = {
+      operator: document.getElementById("operator").value,
+      count: document.getElementById("count").value,
+      length: document.getElementById("length").value
+    };
+
+    try {
+      const res = await fetch("/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        textarea.value = json.numbers.join("\n");
+        resultBox.classList.remove("d-none");
+
+        Swal.fire("Berhasil!", "Nomor berhasil digenerate", "success");
+      } else {
+        Swal.fire("Error", json.error || "Gagal generate nomor", "error");
+      }
+    } catch (err) {
+      Swal.fire("Error", "Server error saat generate", "error");
+    }
+  });
+
+  // Copy
+  document.getElementById("copyBtn").addEventListener("click", () => {
+    textarea.select();
+    textarea.setSelectionRange(0, 99999);
+    document.execCommand("copy");
+    Swal.fire("Disalin!", "Nomor berhasil dicopy ke clipboard!", "success");
+  });
+
+  // Download
+  document.getElementById("downloadBtn").addEventListener("click", () => {
+    const text = textarea.value;
     const blob = new Blob([text], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -67,5 +104,6 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }
+  });
+});
 </script>
