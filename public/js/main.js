@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const socket = window.io ? io() : null;
 
-  // Toastr setup (hanya notifikasi, bukan konfirmasi)
+  // Toastr setup (hanya untuk notifikasi)
   toastr.options = {
     closeButton: true,
     progressBar: true,
@@ -15,34 +15,38 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function renderSessions(sessions) {
     const container = document.getElementById("sessions");
-    container.innerHTML = sessions
-      .map(
-        (s) => `
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <div class="card h-100 d-flex flex-column">
-            <div class="card-body flex-grow-1">
-              <div class="fw-semibold">${s.label || s.sessionId}</div>
-              <div class="small text-muted">ID: ${s.sessionId}</div>
-              <span class="badge mt-2 bg-${
-                s.status === "connected"
-                  ? "success"
-                  : s.status === "reconnecting"
-                  ? "warning"
-                  : "secondary"
-              }">${s.status}</span>
+    if (!container) return;
+
+    container.innerHTML = sessions.length
+      ? sessions
+          .map(
+            (s) => `
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <div class="card h-100 d-flex flex-column">
+              <div class="card-body flex-grow-1">
+                <div class="fw-semibold">${s.label || s.sessionId}</div>
+                <div class="small text-muted">ID: ${s.sessionId}</div>
+                <span class="badge mt-2 bg-${
+                  s.status === "connected"
+                    ? "success"
+                    : s.status === "reconnecting"
+                    ? "warning"
+                    : "secondary"
+                }">${s.status}</span>
+              </div>
+              <div class="card-footer d-flex justify-content-between">
+                <button class="btn btn-sm btn-outline-primary open-session" data-session="${s.sessionId}">
+                  <i class="fa fa-qrcode me-1"></i>Buka
+                </button>
+                <button class="btn btn-sm btn-outline-danger delete-session" data-session="${s.sessionId}">
+                  <i class="fa fa-trash me-1"></i>Hapus
+                </button>
+              </div>
             </div>
-            <div class="card-footer d-flex justify-content-between">
-              <button class="btn btn-sm btn-outline-primary open-session" data-session="${s.sessionId}">
-                <i class="fa fa-qrcode me-1"></i>Open
-              </button>
-              <button class="btn btn-sm btn-outline-danger delete-session" data-session="${s.sessionId}">
-                <i class="fa fa-trash me-1"></i>Delete
-              </button>
-            </div>
-          </div>
-        </div>`
-      )
-      .join("");
+          </div>`
+          )
+          .join("")
+      : `<div class="col-12 text-muted">Belum ada session, buat baru dulu.</div>`;
 
     // bind tombol open
     container.querySelectorAll(".open-session").forEach((btn) => {
@@ -56,7 +60,6 @@ document.addEventListener("DOMContentLoaded", () => {
     container.querySelectorAll(".delete-session").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const sessionId = btn.dataset.session;
-
         const confirm = await Swal.fire({
           title: "Hapus Session?",
           text: `Apakah Anda yakin ingin menghapus session ${sessionId}?`,
@@ -114,7 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /**
-   * Form: Buat Session baru (QR)
+   * Form: Buat Session baru (mode QR)
    */
   const newSessionForm = document.getElementById("newSessionForm");
   if (newSessionForm) {
@@ -128,16 +131,21 @@ document.addEventListener("DOMContentLoaded", () => {
       bootstrap.Modal.getInstance(document.getElementById("sessionModal"))?.hide();
       openQrModal(data.sessionId, "Menunggu QR ...");
 
-      const res = await fetch("/wa/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toastr.success("Session berhasil dibuat", "Berhasil");
-      } else {
-        toastr.error(json.error || "Gagal membuat session", "Error");
+      try {
+        const res = await fetch("/wa/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+        if (json.success) {
+          toastr.success("Session berhasil dibuat", "Berhasil");
+          loadSessions();
+        } else {
+          toastr.error(json.error || "Gagal membuat session", "Error");
+        }
+      } catch (err) {
+        toastr.error("Server error saat membuat session", "Error");
       }
     });
   }
@@ -160,24 +168,28 @@ document.addEventListener("DOMContentLoaded", () => {
       bootstrap.Modal.getInstance(document.getElementById("sessionModal"))?.hide();
       openQrModal(sessionId, "Menunggu kode pairing...");
 
-      const res = await fetch("/wa/pairing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, phone }),
-      }).then((r) => r.json());
+      try {
+        const res = await fetch("/wa/pairing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, phone }),
+        }).then((r) => r.json());
 
-      if (res.success) {
-        document.getElementById("qrContainer").innerHTML = `
-          <div class="p-3 bg-light rounded border fw-bold text-primary fs-4 animate__animated animate__fadeIn">
-            ${res.code}
-          </div>`;
-        document.getElementById("qrNote").innerText =
-          "Masukkan kode ini di WhatsApp → Perangkat Tertaut";
-        toastr.success("Pairing code berhasil dibuat", "Berhasil");
-      } else {
-        document.getElementById("qrContainer").innerHTML =
-          `<div class="text-danger">Gagal: ${res.error || "Tidak bisa generate kode"}</div>`;
-        toastr.error(res.error || "Gagal generate pairing code", "Error");
+        if (res.success) {
+          document.getElementById("qrContainer").innerHTML = `
+            <div class="p-3 bg-light rounded border fw-bold text-primary fs-4 animate__animated animate__fadeIn">
+              ${res.code}
+            </div>`;
+          document.getElementById("qrNote").innerText =
+            "Masukkan kode ini di WhatsApp → Perangkat Tertaut";
+          toastr.success("Pairing code berhasil dibuat", "Berhasil");
+        } else {
+          document.getElementById("qrContainer").innerHTML =
+            `<div class="text-danger">Gagal: ${res.error || "Tidak bisa generate kode"}</div>`;
+          toastr.error(res.error || "Gagal generate pairing code", "Error");
+        }
+      } catch (err) {
+        toastr.error("Server error saat generate pairing code", "Error");
       }
     });
   }
@@ -212,5 +224,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Init pertama kali
-  if (document.getElementById("sessions")) loadSessions();
+  loadSessions();
 });
