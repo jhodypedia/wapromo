@@ -5,33 +5,37 @@ import makeWASocket, {
 import { Boom } from "@hapi/boom";
 import { Session } from "../models/index.js";
 
-const sessions = {}; // map sessionId → socket aktif
+const sessions = new Map(); // sessionId → sock aktif
 
 function delay(ms) {
   return new Promise((res) => setTimeout(res, ms));
 }
 
 /**
- * Mulai session WA
+ * Mulai session WA baru
+ * @param {string} sessionId - session unik (misalnya label user)
+ * @param {object} io - socket.io instance
+ * @param {"qr"|"pairing"} mode - mode koneksi
  */
-export async function startSession(sessionId, io) {
+export async function startSession(sessionId, io, mode = "qr") {
   try {
     const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${sessionId}`);
 
     const sock = makeWASocket({
       auth: state,
-      printQRInTerminal: false // QR dikirim via socket ke frontend
+      printQRInTerminal: false
     });
 
-    sessions[sessionId] = sock;
+    sessions.set(sessionId, sock);
+
     await Session.upsert({ sessionId, status: "connecting" });
     io.emit("wa_status", { sessionId, status: "connecting" });
 
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
-      if (qr) {
-        // kasih delay biar stabil
+      if (mode === "qr" && qr) {
+        // hanya kirim QR jika mode qr
         await delay(6000);
         io.emit("wa_qr", { sessionId, qr });
       }
@@ -51,9 +55,9 @@ export async function startSession(sessionId, io) {
         if (shouldReconnect) {
           await Session.upsert({ sessionId, status: "reconnecting" });
           io.emit("wa_status", { sessionId, status: "reconnecting" });
-          setTimeout(() => startSession(sessionId, io), 3000);
+          setTimeout(() => startSession(sessionId, io, mode), 3000);
         } else {
-          delete sessions[sessionId];
+          sessions.delete(sessionId);
         }
       }
     });
@@ -63,14 +67,14 @@ export async function startSession(sessionId, io) {
 }
 
 /**
- * Ambil socket aktif
+ * Ambil socket aktif dari memory
  */
 export function getSession(sessionId) {
-  return sessions[sessionId] || null;
+  return sessions.get(sessionId) || null;
 }
 
 /**
- * Generate Pairing Code (6 digit)
+ * Generate Pairing Code (8 digit)
  */
 export async function getPairingCode(sessionId, phoneNumber) {
   const sock = getSession(sessionId);
@@ -78,11 +82,19 @@ export async function getPairingCode(sessionId, phoneNumber) {
 
   const jid = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
 
-  // tunggu 6 detik biar socket siap
+  // kasih jeda supaya socket siap
   await delay(6000);
 
   try {
-    const code = await sock.requestPairingCode(jid);
+    let code = await sock.requestPairingCode(jid);
+
+    // pastikan fix 8 digit
+    if (code.length < 8) {
+      code = code.padEnd(8, "0");
+    } else if (code.length > 8) {
+      code = code.slice(0, 8);
+    }
+
     return code;
   } catch (err) {
     throw new Error("Gagal generate pairing code: " + err.message);
@@ -90,7 +102,7 @@ export async function getPairingCode(sessionId, phoneNumber) {
 }
 
 /**
- * Cek apakah nomor valid di WhatsApp
+ * Cek nomor apakah valid di WhatsApp
  */
 export async function checkWaNumber(sessionId, number) {
   const sock = getSession(sessionId);
@@ -98,4 +110,17 @@ export async function checkWaNumber(sessionId, number) {
 
   const res = await sock.onWhatsApp(number.replace(/\D/g, "") + "@s.whatsapp.net");
   return !!res?.[0]?.exists;
+}
+
+/**
+ * Restore semua session dari DB saat server start
+ */
+export async function initSessions(io) {
+  const dbSessions = await Session.findAll();
+  for (const s of dbSessions) {
+    if (s.status === "connected") {
+      console.log("🔄 Restore session:", s.sessionId);
+      await startSession(s.sessionId, io, "qr"); // default restore pakai QR
+    }
+  }
 }
