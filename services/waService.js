@@ -6,20 +6,8 @@ import { Boom } from "@hapi/boom";
 import { Session } from "../models/index.js";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
 
 const sessions = new Map(); // sessionId → socket aktif
-
-// setup path fix agar tidak tergantung process.cwd()
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const SESSION_ROOT = path.join(__dirname, "..", "sessions");
-
-// auto create folder sessions root
-if (!fs.existsSync(SESSION_ROOT)) {
-  fs.mkdirSync(SESSION_ROOT, { recursive: true });
-}
 
 function delay(ms) {
   return new Promise((res) => setTimeout(res, ms));
@@ -30,8 +18,9 @@ function delay(ms) {
  */
 export async function startSession(sessionId, io, mode = "qr", label = null) {
   try {
-    const sessionPath = path.join(SESSION_ROOT, sessionId);
-    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+    console.log(`🚀 startSession: ${sessionId} (mode=${mode})`);
+
+    const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${sessionId}`);
 
     const sock = makeWASocket({
       auth: state,
@@ -46,8 +35,9 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
+      console.log(`📡 connection.update: ${sessionId} →`, { connection, hasQr: !!qr });
+
       if (mode === "qr" && qr) {
-        // kirim QR ke frontend
         await delay(6000);
         io.emit("wa_qr", { sessionId, qr });
       }
@@ -62,7 +52,7 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
         const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
         const shouldReconnect = code !== DisconnectReason.loggedOut;
 
-        console.log(`⚠️ Session ${sessionId} closed (${code})`);
+        console.log(`⚠️ Session ${sessionId} closed (code=${code}, reconnect=${shouldReconnect})`);
 
         await Session.upsert({ sessionId, label, status: "disconnected", mode });
         io.emit("wa_status", { sessionId, status: "disconnected" });
@@ -78,7 +68,7 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
       }
     });
   } catch (err) {
-    console.error("❌ Error startSession:", err.message);
+    console.error(`❌ Error startSession(${sessionId}):`, err);
   }
 }
 
@@ -86,24 +76,28 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
  * Ambil socket aktif
  */
 export function getSession(sessionId) {
+  console.log(`🔎 getSession(${sessionId}) →`, sessions.has(sessionId));
   return sessions.get(sessionId) || null;
 }
 
 /**
- * Generate Pairing Code asli dari Baileys
+ * Generate Pairing Code
  */
 export async function getPairingCode(sessionId, phoneNumber) {
   const sock = getSession(sessionId);
   if (!sock) throw new Error("Session belum aktif");
 
   const jid = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
+  console.log(`🔑 getPairingCode(${sessionId}, ${jid})`);
 
   await delay(6000);
 
   try {
     const code = await sock.requestPairingCode(jid);
-    return code; // return apa adanya
+    console.log(`✅ Pairing code generated for ${sessionId}:`, code);
+    return code;
   } catch (err) {
+    console.error(`❌ Gagal generate pairing code (${sessionId}):`, err);
     throw new Error("Gagal generate pairing code: " + err.message);
   }
 }
@@ -115,7 +109,12 @@ export async function checkWaNumber(sessionId, number) {
   const sock = getSession(sessionId);
   if (!sock) throw new Error("Session belum aktif");
 
-  const res = await sock.onWhatsApp(number.replace(/\D/g, "") + "@s.whatsapp.net");
+  const jid = number.replace(/\D/g, "") + "@s.whatsapp.net";
+  console.log(`📞 checkWaNumber(${sessionId}, ${jid})`);
+
+  const res = await sock.onWhatsApp(jid);
+  console.log("📥 onWhatsApp response:", res);
+
   return !!res?.[0]?.exists;
 }
 
@@ -123,43 +122,48 @@ export async function checkWaNumber(sessionId, number) {
  * Hapus session dari memory, DB, dan folder
  */
 export async function deleteSession(sessionId) {
+  console.log(`🗑️ deleteSession: ${sessionId}`);
   try {
     const sock = sessions.get(sessionId);
     if (sock) {
       try {
+        console.log(`📤 Logout socket: ${sessionId}`);
         await sock.logout();
-      } catch (e) {
-        console.warn(`⚠️ Logout gagal: ${e.message}`);
+      } catch (logoutErr) {
+        console.error(`⚠️ Logout error (${sessionId}):`, logoutErr.message);
       }
       sessions.delete(sessionId);
     }
 
-    await Session.destroy({ where: { sessionId } });
+    const dbDel = await Session.destroy({ where: { sessionId } });
+    console.log(`🗄️ DB delete (${sessionId}):`, dbDel);
 
-    const folder = path.join(SESSION_ROOT, sessionId);
+    const folder = path.join(process.cwd(), "sessions", sessionId);
     if (fs.existsSync(folder)) {
+      console.log(`📂 Removing folder: ${folder}`);
       fs.rmSync(folder, { recursive: true, force: true });
-      console.log(`🗑️ Folder ${folder} deleted`);
     } else {
-      console.log(`ℹ️ Folder ${folder} tidak ditemukan, skip`);
+      console.log(`ℹ️ Folder not found for ${sessionId}: ${folder}`);
     }
 
-    console.log(`✅ Session ${sessionId} deleted`);
+    console.log(`✅ Session ${sessionId} fully deleted`);
     return true;
   } catch (err) {
-    console.error("❌ Error deleteSession:", err.message);
+    console.error(`❌ Error deleteSession(${sessionId}):`, err);
     return false;
   }
 }
 
 /**
- * Restore semua session dari DB saat server start
+ * Restore session saat server start
  */
 export async function initSessions(io) {
+  console.log("🔄 initSessions: restoring from DB...");
   const dbSessions = await Session.findAll();
   for (const s of dbSessions) {
+    console.log(`→ Found session: ${s.sessionId}, status=${s.status}`);
     if (s.status === "connected" || s.status === "reconnecting") {
-      console.log(`🔄 Restore session: ${s.sessionId} (mode=${s.mode || "qr"})`);
+      console.log(`🔄 Restoring ${s.sessionId} (mode=${s.mode || "qr"})`);
       await startSession(s.sessionId, io, s.mode || "qr", s.label);
     }
   }
