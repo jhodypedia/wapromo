@@ -2,7 +2,7 @@
 import { Template } from "../models/index.js";
 
 /**
- * List semua template
+ * List semua template (untuk render EJS)
  */
 export const listTemplates = async (req, res) => {
   try {
@@ -14,27 +14,41 @@ export const listTemplates = async (req, res) => {
 };
 
 /**
- * Form create
+ * Ambil detail template (AJAX GET /templates/:id)
  */
-export const createTemplateForm = (req, res) => {
-  res.render("templates/new");
-};
-
-/**
- * Create baru
- */
-export const createTemplate = async (req, res) => {
+export const getTemplate = async (req, res) => {
   try {
-    const { title, body, link } = req.body;
-    await Template.create({ title, body, link, isActive: true });
-    res.redirect("/templates");
+    const { id } = req.params;
+    const tpl = await Template.findByPk(id);
+    if (!tpl) return res.status(404).json({ success: false, error: "Template tidak ditemukan" });
+
+    res.json({ success: true, template: tpl });
   } catch (e) {
-    res.status(500).send(e.message);
+    res.status(500).json({ success: false, error: e.message });
   }
 };
 
 /**
- * Update template (AJAX PUT)
+ * Create template (AJAX POST /templates)
+ */
+export const createTemplate = async (req, res) => {
+  try {
+    const { title, body, link, isActive } = req.body;
+    const tpl = await Template.create({
+      title,
+      body,
+      link,
+      isActive: isActive === "true" || isActive === true
+    });
+
+    res.json({ success: true, msg: "Template berhasil ditambahkan", template: tpl });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+};
+
+/**
+ * Update template (AJAX PUT /templates/:id)
  */
 export const updateTemplate = async (req, res) => {
   try {
@@ -50,14 +64,14 @@ export const updateTemplate = async (req, res) => {
     tpl.isActive = isActive === "true" || isActive === true;
     await tpl.save();
 
-    res.json({ success: true, template: tpl });
+    res.json({ success: true, msg: "Template berhasil diperbarui", template: tpl });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
 };
 
 /**
- * Delete template (AJAX DELETE)
+ * Delete template (AJAX DELETE /templates/:id)
  */
 export const deleteTemplate = async (req, res) => {
   try {
@@ -66,7 +80,7 @@ export const deleteTemplate = async (req, res) => {
     if (!tpl) return res.status(404).json({ success: false, error: "Template tidak ditemukan" });
 
     await tpl.destroy();
-    res.json({ success: true });
+    res.json({ success: true, msg: "Template berhasil dihapus" });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
