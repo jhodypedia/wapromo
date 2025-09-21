@@ -14,7 +14,7 @@
           <th>Nama</th>
           <th>Template</th>
           <th>Status</th>
-          <th style="width:150px">Aksi</th>
+          <th style="width:180px">Aksi</th>
         </tr>
       </thead>
       <tbody id="campaignTableBody">
@@ -36,11 +36,11 @@
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">Nama Campaign</label>
-            <input type="text" id="campaignName" class="form-control" required />
+            <input type="text" name="name" id="campaignName" class="form-control" required />
           </div>
           <div class="mb-3">
             <label class="form-label">Template</label>
-            <select id="templateId" class="form-select" required>
+            <select name="templateId" id="templateId" class="form-select" required>
               <option value="">-- Pilih Template --</option>
               <% templates.forEach(t => { %>
                 <option value="<%= t.id %>"><%= t.title %></option>
@@ -49,7 +49,7 @@
           </div>
           <div class="mb-3">
             <label class="form-label">Session</label>
-            <select id="sessionId" class="form-select" required>
+            <select name="sessionId" id="sessionId" class="form-select" required>
               <option value="">-- Pilih Session --</option>
               <% sessions.forEach(s => { %>
                 <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
@@ -58,16 +58,16 @@
           </div>
           <div class="mb-3">
             <label class="form-label">Target</label>
-            <textarea id="numbers" rows="4" class="form-control" placeholder="628xxx (satu per baris)"></textarea>
+            <textarea name="numbers" id="numbers" rows="4" class="form-control" placeholder="628xxx (satu per baris)"></textarea>
           </div>
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Speed Min (ms)</label>
-              <input type="number" id="speedMinMs" class="form-control" value="5000" />
+              <input type="number" name="speedMinMs" id="speedMinMs" class="form-control" value="5000" />
             </div>
             <div class="col-md-6 mb-3">
               <label class="form-label">Speed Max (ms)</label>
-              <input type="number" id="speedMaxMs" class="form-control" value="15000" />
+              <input type="number" name="speedMaxMs" id="speedMaxMs" class="form-control" value="15000" />
             </div>
           </div>
         </div>
@@ -97,8 +97,6 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const socket = io();
-
   let table = $('#campaignTable').DataTable({
     responsive: true,
     pageLength: 5,
@@ -113,139 +111,203 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   async function loadCampaigns() {
-    const res = await fetch("/campaigns/list");
-    const data = await res.json();
-    table.clear();
+    try {
+      const res = await fetch("/campaigns/list");
+      const data = await res.json();
+      table.clear();
 
-    data.forEach((c,i)=>{
-      const statusBadge = `<span class="badge rounded-pill bg-${
-        c.status==="done"?"success":c.status==="running"?"warning":c.status==="stopped"?"danger":"secondary"
-      } px-3 py-2">${c.status}</span>`;
+      data.forEach((c, i) => {
+        const statusBadge = `<span class="badge rounded-pill bg-${
+          c.status==="done" ? "success" :
+          c.status==="running" ? "warning" :
+          c.status==="stopped" ? "danger" : "secondary"
+        } px-3 py-2">${c.status}</span>`;
 
-      const actions = `
-        ${c.status==="idle"
-          ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}"><i class="fa fa-play"></i></button>`
-          : (c.status==="running"
-            ? `<button class="btn btn-sm btn-warning stop-campaign" data-id="${c.id}"><i class="fa fa-stop"></i></button>`:"")
-        }
-        <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${c.id}"><i class="fa fa-eye"></i></button>
-        <button class="btn btn-sm btn-danger delete-campaign" data-id="${c.id}"><i class="fa fa-trash"></i></button>
-      `;
+        const actions = `
+          ${c.status==="idle"
+            ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}" title="Jalankan"><i class="fa fa-play"></i></button>`
+            : (c.status==="running"
+              ? `<button class="btn btn-sm btn-warning stop-campaign" data-id="${c.id}" title="Stop"><i class="fa fa-stop"></i></button>`
+              : "")
+          }
+          <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${c.id}" title="Detail"><i class="fa fa-eye"></i></button>
+          <button class="btn btn-sm btn-danger delete-campaign" data-id="${c.id}" title="Hapus"><i class="fa fa-trash"></i></button>
+        `;
 
-      table.row.add([
-        i+1,
-        `<span class="fw-semibold">${c.name}</span>`,
-        c.template?c.template.title:"-",
-        statusBadge,
-        `<div class="d-flex gap-1">${actions}</div>`
-      ]);
-    });
+        table.row.add([
+          i+1,
+          `<span class="fw-semibold">${c.name}</span>`,
+          c.template ? c.template.title : "-",
+          statusBadge,
+          `<div class="d-flex gap-1">${actions}</div>`
+        ]);
+      });
 
-    table.draw();
-    bindActions();
+      table.draw();
+      bindActions();
+    } catch (err) {
+      Swal.fire("Error", "Gagal memuat campaign", "error");
+    }
   }
 
-  function bindActions(){
-    // Run
-    $('#campaignTable').off('click','.run-campaign').on('click','.run-campaign',async function(){
-      const id=$(this).data('id');
-      const res=await fetch(`/campaigns/${id}/run`,{method:"POST"});
-      const json=await res.json();
-      if(json.success){Swal.fire("Berhasil","Campaign dijalankan","success");loadCampaigns();}
-      else Swal.fire("Error",json.error,"error");
+  function bindActions() {
+    // Jalankan
+    $('#campaignTable').off('click', '.run-campaign').on('click', '.run-campaign', async function () {
+      const id = $(this).data('id');
+      const res = await fetch(`/campaigns/${id}/run`, {method:"POST"});
+      const json = await res.json();
+      if (json.success) {
+        Swal.fire("Berhasil", "Campaign dijalankan", "success");
+        loadCampaigns();
+      } else {
+        Swal.fire("Error", json.error || "Gagal menjalankan campaign", "error");
+      }
     });
 
     // Stop
-    $('#campaignTable').off('click','.stop-campaign').on('click','.stop-campaign',async function(){
-      const id=$(this).data('id');
-      const ok=await Swal.fire({title:"Stop Campaign?",icon:"warning",showCancelButton:true});
-      if(!ok.isConfirmed)return;
-      const res=await fetch(`/campaigns/${id}/stop`,{method:"POST"});
-      const json=await res.json();
-      if(json.success){Swal.fire("Berhasil","Campaign dihentikan","success");loadCampaigns();}
-      else Swal.fire("Error",json.error,"error");
+    $('#campaignTable').off('click', '.stop-campaign').on('click', '.stop-campaign', async function () {
+      const id = $(this).data('id');
+      const confirmStop = await Swal.fire({
+        title:"Stop Campaign?",
+        text:"Campaign akan dihentikan.",
+        icon:"warning",
+        showCancelButton:true,
+        confirmButtonText:"Ya, stop",
+        cancelButtonText:"Batal"
+      });
+      if (!confirmStop.isConfirmed) return;
+
+      const res = await fetch(`/campaigns/${id}/stop`, {method:"POST"});
+      const json = await res.json();
+      if (json.success) {
+        Swal.fire("Berhasil", "Campaign dihentikan", "success");
+        loadCampaigns();
+      } else {
+        Swal.fire("Error", json.error || "Gagal stop campaign", "error");
+      }
     });
 
-    // Delete
-    $('#campaignTable').off('click','.delete-campaign').on('click','.delete-campaign',async function(){
-      const id=$(this).data('id');
-      const ok=await Swal.fire({title:"Hapus Campaign?",icon:"warning",showCancelButton:true});
-      if(!ok.isConfirmed)return;
-      await fetch(`/campaigns/${id}`,{method:"DELETE"});
-      loadCampaigns();
+    // Hapus
+    $('#campaignTable').off('click', '.delete-campaign').on('click', '.delete-campaign', async function () {
+      const id = $(this).data('id');
+      const confirmDel = await Swal.fire({
+        title:"Hapus Campaign?",
+        text:"Data target juga akan terhapus.",
+        icon:"warning",
+        showCancelButton:true,
+        confirmButtonText:"Ya, hapus",
+        cancelButtonText:"Batal"
+      });
+      if (!confirmDel.isConfirmed) return;
+
+      const res = await fetch(`/campaigns/${id}`, {method:"DELETE"});
+      const json = await res.json();
+      if (json.success) {
+        Swal.fire("Berhasil", "Campaign dihapus", "success");
+        loadCampaigns();
+      } else {
+        Swal.fire("Error", json.error || "Gagal menghapus", "error");
+      }
     });
 
     // Detail
-    $('#campaignTable').off('click','.detail-campaign').on('click','.detail-campaign',async function(){
-      const id=$(this).data('id');
-      const body=document.getElementById("campaignDetailBody");
-      body.innerHTML="<div class='text-muted'>Loading...</div>";
+    $('#campaignTable').off('click', '.detail-campaign').on('click', '.detail-campaign', async function () {
+      const id = $(this).data('id');
+      const body = document.getElementById("campaignDetailBody");
+      body.innerHTML = "<div class='text-muted'>Loading...</div>";
       new bootstrap.Modal(document.getElementById("campaignDetailModal")).show();
 
-      const res=await fetch(`/campaigns/${id}/detail`);
-      const json=await res.json();
-      if(json.success){
-        const cp=json.campaign;
-        body.innerHTML=`
+      const res = await fetch(`/campaigns/${id}/detail`);
+      const json = await res.json();
+      if (json.success) {
+        const cp = json.campaign;
+        let processed = cp.targets.filter(t=>["success","error"].includes(t.status)).length;
+        const total = cp.targets.length;
+
+        body.innerHTML = `
           <h6 class="fw-bold">${cp.name}</h6>
           <p><b>Status:</b> ${cp.status}</p>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Progress Global</label>
+            <div class="progress" style="height:14px;">
+              <div id="campaignProgressBar" class="progress-bar bg-primary" style="width:${Math.round((processed/total)*100)}%">
+                ${Math.round((processed/total)*100)}%
+              </div>
+            </div>
+            <small id="campaignProgressText" class="text-muted">${processed} / ${total} dikirim</small>
+          </div>
           <hr>
           <h6 class="fw-bold">Target</h6>
           <ul class="list-group small">
             ${cp.targets.map(t=>`
               <li class="list-group-item d-flex justify-content-between align-items-center" id="target-${t.id}">
                 <span>${t.number}</span>
-                <span>
-                  <div class="progress d-inline-block" style="width:80px;height:8px;display:none">
+                <span class="d-flex align-items-center gap-2">
+                  <div class="progress" style="width:80px;height:8px;display:none">
                     <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:100%"></div>
                   </div>
                   <span class="badge bg-${t.status==="success"?"success":t.status==="error"?"danger":t.status==="valid"?"info":"secondary"}">${t.status}</span>
                 </span>
-              </li>
-            `).join("")}
+              </li>`).join("")}
           </ul>`;
+
+        // socket update
+        const socket = io();
+        socket.off("campaign_progress").on("campaign_progress", ({ campaignId, targetId, status }) => {
+          if (campaignId !== cp.id) return;
+          const li = document.getElementById(`target-${targetId}`);
+          if (!li) return;
+
+          const progress = li.querySelector(".progress");
+          const badge = li.querySelector(".badge");
+
+          if (status === "processing") {
+            document.querySelectorAll("#campaignDetailBody .progress").forEach(p => p.style.display = "none");
+            progress.style.display = "block";
+            badge.textContent = "processing";
+            badge.className = "badge bg-warning";
+          } else {
+            progress.style.display = "none";
+            badge.textContent = status;
+            badge.className = "badge bg-" + (status === "success" ? "success" : "danger");
+            processed++;
+            const percent = Math.round((processed/total)*100);
+            document.getElementById("campaignProgressBar").style.width = percent + "%";
+            document.getElementById("campaignProgressBar").textContent = percent + "%";
+            document.getElementById("campaignProgressText").textContent = `${processed} / ${total} dikirim`;
+          }
+        });
+      } else {
+        body.innerHTML = `<div class="text-danger">Gagal memuat detail: ${json.error}</div>`;
       }
     });
   }
 
-  // socket real-time progress
-  socket.on("campaign_progress",({targetId,status})=>{
-    const li=document.getElementById(`target-${targetId}`);
-    if(!li)return;
-    const progress=li.querySelector(".progress");
-    const badge=li.querySelector(".badge");
-
-    if(status==="processing"){
-      progress.style.display="block";
-      badge.textContent="processing";
-      badge.className="badge bg-warning";
-    }else{
-      progress.style.display="none";
-      badge.textContent=status;
-      badge.className="badge bg-"+(status==="success"?"success":"danger");
-    }
-  });
-
-  socket.on("campaign_done",()=>loadCampaigns());
-  socket.on("campaign_stopped",()=>loadCampaigns());
-
-  // create
-  document.getElementById("campaignForm").addEventListener("submit",async e=>{
+  // Create campaign
+  const form = document.getElementById("campaignForm");
+  form.addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const data={
-      name:campaignName.value,
-      templateId:templateId.value,
-      sessionId:sessionId.value,
-      numbers:numbers.value,
-      speedMinMs:speedMinMs.value,
-      speedMaxMs:speedMaxMs.value,
+    const data = {
+      name: document.getElementById("campaignName").value,
+      templateId: document.getElementById("templateId").value,
+      sessionId: document.getElementById("sessionId").value,
+      numbers: document.getElementById("numbers").value,
+      speedMinMs: document.getElementById("speedMinMs").value,
+      speedMaxMs: document.getElementById("speedMaxMs").value,
     };
-    const res=await fetch("/campaigns/new",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
-    const json=await res.json();
+    const res = await fetch("/campaigns/new", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
     if(json.success){
-      Swal.fire("Berhasil","Campaign dibuat","success");
+      Swal.fire("Berhasil", "Campaign berhasil dibuat", "success");
       bootstrap.Modal.getInstance(document.getElementById("campaignModal"))?.hide();
+      form.reset();
       loadCampaigns();
+    }else{
+      Swal.fire("Error", json.error || "Gagal membuat campaign", "error");
     }
   });
 
