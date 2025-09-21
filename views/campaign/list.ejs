@@ -1,4 +1,3 @@
-
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h4 class="mb-0"><i class="fa fa-bullhorn text-primary me-2"></i>Campaigns</h4>
   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#campaignModal">
@@ -15,63 +14,67 @@
         <th>Template</th>
         <th>Status</th>
         <th>Target</th>
-        <th style="width:140px">Aksi</th>
+        <th style="width:160px">Aksi</th>
       </tr>
     </thead>
     <tbody id="campaignTableBody">
-      <% if (campaigns.length === 0) { %>
-        <tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>
-      <% } else { %>
-        <% campaigns.forEach((c, i) => { 
-          const total = c.targets.length;
-          const valid = c.targets.filter(t=>t.status==="valid").length;
-          const invalid = c.targets.filter(t=>t.status==="invalid").length;
-          const success = c.targets.filter(t=>t.status==="success").length;
-          const error = c.targets.filter(t=>t.status==="error").length;
-        %>
-        <tr>
-          <td><%= i+1 %></td>
-          <td class="fw-semibold"><%= c.name %></td>
-          <td><%= c.template ? c.template.name : "-" %></td>
-          <td>
-            <span class="badge rounded-pill bg-<%= 
-              c.status==="done" ? "success" : 
-              c.status==="running" ? "warning" : "secondary" 
-            %> px-3 py-2">
-              <%= c.status %>
-            </span>
-          </td>
-          <td>
-            <div class="d-flex flex-wrap gap-1 small">
-              <span class="badge bg-info">T:<%= total %></span>
-              <span class="badge bg-success">V:<%= valid %></span>
-              <span class="badge bg-danger">I:<%= invalid %></span>
-              <span class="badge bg-primary">S:<%= success %></span>
-              <span class="badge bg-dark">E:<%= error %></span>
-            </div>
-          </td>
-          <td class="d-flex gap-1">
-            <% if (c.status==="idle") { %>
-              <button class="btn btn-sm btn-success run-campaign" data-id="<%= c.id %>">
-                <i class="fa fa-play"></i>
-              </button>
-            <% } else if (c.status==="running") { %>
-              <button class="btn btn-sm btn-secondary" disabled>
-                <i class="fa fa-spinner fa-spin"></i>
-              </button>
-            <% } %>
-            <button class="btn btn-sm btn-info text-white detail-campaign" data-id="<%= c.id %>">
-              <i class="fa fa-eye"></i>
-            </button>
-            <button class="btn btn-sm btn-danger delete-campaign" data-id="<%= c.id %>">
-              <i class="fa fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-        <% }) %>
-      <% } %>
+      <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
     </tbody>
   </table>
+</div>
+
+<!-- Modal Create Campaign -->
+<div class="modal fade" id="campaignModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title"><i class="fa fa-plus text-primary me-2"></i>Campaign Baru</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="createCampaignForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Nama Campaign</label>
+            <input type="text" name="name" class="form-control" placeholder="Promo Minggu Ini" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Pilih Template</label>
+            <select name="templateId" class="form-select" required>
+              <% templates.forEach(t=> { %>
+                <option value="<%= t.id %>"><%= t.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Pilih Session</label>
+            <select name="sessionId" class="form-select" required>
+              <% sessions.forEach(s=> { %>
+                <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nomor Target (1 per baris)</label>
+            <textarea name="numbers" class="form-control" rows="4" placeholder="6281234567890"></textarea>
+          </div>
+          <div class="row">
+            <div class="col">
+              <label class="form-label">Delay Min (ms)</label>
+              <input type="number" name="speedMinMs" class="form-control" value="5000">
+            </div>
+            <div class="col">
+              <label class="form-label">Delay Max (ms)</label>
+              <input type="number" name="speedMaxMs" class="form-control" value="15000">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary"><i class="fa fa-save me-2"></i>Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <!-- Modal Detail Campaign -->
@@ -214,6 +217,35 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     });
+
+    // Create campaign
+    const form = document.getElementById("createCampaignForm");
+    if (form) {
+      form.addEventListener("submit", async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(form);
+        const obj = {};
+        fd.forEach((v,k)=>obj[k]=v);
+
+        try {
+          const res = await fetch("/campaigns/new", {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify(obj)
+          });
+          if (res.ok) {
+            toastr.success("Campaign berhasil dibuat");
+            form.reset();
+            bootstrap.Modal.getInstance(document.getElementById("campaignModal"))?.hide();
+            loadCampaigns();
+          } else {
+            toastr.error("Gagal membuat campaign");
+          }
+        } catch {
+          toastr.error("Server error saat membuat campaign");
+        }
+      });
+    }
   }
 
   loadCampaigns();
