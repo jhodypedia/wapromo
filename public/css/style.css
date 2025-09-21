@@ -1,0 +1,17 @@
+:root{
+  --primary:#0d6efd; --primary-600:#0b5ed7;
+  --bg:#f7f9fc; --card:#ffffff; --text:#1f2937; --muted:#6b7280;
+  --shadow:0 10px 30px rgba(13,110,253,.08);
+}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}
+.navbar .navbar-brand{letter-spacing:.2px}
+.hero{background:linear-gradient(180deg,#fff,rgba(13,110,253,.06));border:1px solid #eef2ff}
+.card{border:1px solid #eef2ff;box-shadow:var(--shadow);border-radius:16px;transition:transform .25s,box-shadow .25s;background:var(--card)}
+.card:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(13,110,253,.12)}
+.card.stat .icon-wrap{width:44px;height:44px;border-radius:12px;background:rgba(13,110,253,.1);display:flex;align-items:center;justify-content:center}
+.card.stat .icon-wrap i{color:var(--primary)}
+.btn-primary{background:var(--primary);border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-600);border-color:var(--primary-600)}
+.glass{background:rgba(255,255,255,.8)!important;backdrop-filter:saturate(180%) blur(8px)}
+.badge{text-transform:capitalize}
