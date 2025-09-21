@@ -6,8 +6,20 @@ import { Boom } from "@hapi/boom";
 import { Session } from "../models/index.js";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 const sessions = new Map(); // sessionId → socket aktif
+
+// setup path fix agar tidak tergantung process.cwd()
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const SESSION_ROOT = path.join(__dirname, "..", "sessions");
+
+// auto create folder sessions root
+if (!fs.existsSync(SESSION_ROOT)) {
+  fs.mkdirSync(SESSION_ROOT, { recursive: true });
+}
 
 function delay(ms) {
   return new Promise((res) => setTimeout(res, ms));
@@ -18,7 +30,8 @@ function delay(ms) {
  */
 export async function startSession(sessionId, io, mode = "qr", label = null) {
   try {
-    const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${sessionId}`);
+    const sessionPath = path.join(SESSION_ROOT, sessionId);
+    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
     const sock = makeWASocket({
       auth: state,
@@ -115,18 +128,23 @@ export async function deleteSession(sessionId) {
     if (sock) {
       try {
         await sock.logout();
-      } catch {}
+      } catch (e) {
+        console.warn(`⚠️ Logout gagal: ${e.message}`);
+      }
       sessions.delete(sessionId);
     }
 
     await Session.destroy({ where: { sessionId } });
 
-    const folder = path.join(process.cwd(), "sessions", sessionId);
+    const folder = path.join(SESSION_ROOT, sessionId);
     if (fs.existsSync(folder)) {
       fs.rmSync(folder, { recursive: true, force: true });
+      console.log(`🗑️ Folder ${folder} deleted`);
+    } else {
+      console.log(`ℹ️ Folder ${folder} tidak ditemukan, skip`);
     }
 
-    console.log(`🗑️ Session ${sessionId} deleted`);
+    console.log(`✅ Session ${sessionId} deleted`);
     return true;
   } catch (err) {
     console.error("❌ Error deleteSession:", err.message);
