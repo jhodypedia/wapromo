@@ -1,6 +1,6 @@
 import express from "express";
 import { authRequired } from "../middlewares/auth.js";
-import { Campaign, Template, Target } from "../models/index.js";
+import { Campaign, Template, Target, Session } from "../models/index.js";
 import { getSession } from "../services/waService.js";
 
 const router = express.Router();
@@ -13,7 +13,8 @@ router.get("/", authRequired, async (req, res) => {
     const campaigns = await Campaign.findAll({
       include: [
         { model: Template, as: "template" },
-        { model: Target, as: "targets" }
+        { model: Target, as: "targets" },
+        { model: Session, as: "session" }
       ],
       order: [["id", "DESC"]]
     });
@@ -29,7 +30,8 @@ router.get("/", authRequired, async (req, res) => {
 router.get("/new", authRequired, async (req, res) => {
   try {
     const templates = await Template.findAll({ where: { isActive: true } });
-    res.render("campaign/new", { templates, error: null });
+    const sessions = await Session.findAll();
+    res.render("campaign/new", { templates, sessions, error: null });
   } catch (e) {
     res.status(500).send(e.message);
   }
@@ -42,10 +44,21 @@ router.post("/new", authRequired, async (req, res) => {
   try {
     const { name, templateId, sessionId, numbers, speedMinMs, speedMaxMs } = req.body;
 
-    const sock = getSession(sessionId);
+    // pastikan session valid
+    const session = await Session.findByPk(sessionId);
+    if (!session) {
+      return res.render("campaign/new", {
+        templates: await Template.findAll({ where: { isActive: true } }),
+        sessions: await Session.findAll(),
+        error: "Session tidak ditemukan"
+      });
+    }
+
+    const sock = getSession(session.sessionId);
     if (!sock) {
       return res.render("campaign/new", {
         templates: await Template.findAll({ where: { isActive: true } }),
+        sessions: await Session.findAll(),
         error: "Session WA belum aktif"
       });
     }
@@ -54,7 +67,7 @@ router.post("/new", authRequired, async (req, res) => {
     const cp = await Campaign.create({
       name,
       templateId,
-      sessionId,
+      sessionId: session.id, // ✅ simpan FK INT
       userId: req.session.user.id,
       speedMinMs: parseInt(speedMinMs) || 5000,
       speedMaxMs: parseInt(speedMaxMs) || 15000,
@@ -99,11 +112,11 @@ router.post("/:id/run", authRequired, async (req, res) => {
     const io = req.app.get("io");
 
     const cp = await Campaign.findByPk(id, {
-      include: [{ model: Template, as: "template" }]
+      include: [{ model: Template, as: "template" }, { model: Session, as: "session" }]
     });
     if (!cp) return res.status(404).send("Campaign not found");
 
-    const sock = getSession(cp.sessionId);
+    const sock = getSession(cp.session.sessionId); // ✅ pakai session.sessionId string
     if (!sock) return res.status(400).send("Session WA belum aktif");
 
     const targets = await Target.findAll({
@@ -115,7 +128,6 @@ router.post("/:id/run", authRequired, async (req, res) => {
     await cp.save();
 
     const rand = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
-
     const message =
       cp.template.body + (cp.template.link ? `\n👉 ${cp.template.link}` : "");
 
@@ -144,9 +156,7 @@ router.post("/:id/run", authRequired, async (req, res) => {
             status: "error"
           });
         }
-        await new Promise((r) =>
-          setTimeout(r, rand(cp.speedMinMs, cp.speedMaxMs))
-        );
+        await new Promise((r) => setTimeout(r, rand(cp.speedMinMs, cp.speedMaxMs)));
       }
       cp.status = "done";
       await cp.save();
