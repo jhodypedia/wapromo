@@ -3,6 +3,10 @@
   --primary-600: #0b5ed7;
   --primary-700: #0948a5;
 
+  --success: #198754;
+  --warning: #ffc107;
+  --danger: #dc3545;
+
   --bg: #f7f9fc;
   --card: #ffffff;
   --text: #1f2937;
@@ -21,6 +25,7 @@ body {
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
 }
 
 /* NAVBAR */
@@ -34,7 +39,18 @@ body {
   letter-spacing: .3px;
 }
 .navbar .nav-link { transition: var(--transition); }
-.navbar .nav-link:hover { color: var(--primary); }
+.navbar .nav-link:hover,
+.navbar .nav-link.active {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+/* HERO */
+.hero {
+  background: linear-gradient(135deg, #fff, rgba(13,110,253,.06));
+  border: 1px solid #eef2ff;
+  box-shadow: var(--shadow);
+}
 
 /* CARD */
 .card {
@@ -50,6 +66,21 @@ body {
   box-shadow: 0 16px 40px rgba(13,110,253,.15);
 }
 .card-body { transition: var(--transition); }
+
+/* CARD STAT */
+.card.stat .icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  transition: var(--transition);
+}
+.card.stat:hover .icon-wrap {
+  transform: scale(1.1) rotate(5deg);
+}
 
 /* BUTTONS */
 .btn {
@@ -82,6 +113,15 @@ body {
   font-size: .75rem;
   border-radius: 6px;
   animation: fadeIn .4s ease;
+}
+
+/* TABLE */
+.table thead {
+  background: #f1f5f9;
+}
+.table-hover tbody tr:hover {
+  background: rgba(13,110,253,.05);
+  transition: var(--transition);
 }
 
 /* MODALS */
@@ -146,7 +186,7 @@ body {
 
 /* Toastr Custom Theme */
 #toast-container > .toast-success {
-  background-color: #198754 !important;
+  background-color: var(--success) !important;
   color: #fff !important;
 }
 #toast-container > .toast-info {
@@ -154,11 +194,11 @@ body {
   color: #fff !important;
 }
 #toast-container > .toast-warning {
-  background-color: #ffc107 !important;
+  background-color: var(--warning) !important;
   color: #212529 !important;
 }
 #toast-container > .toast-error {
-  background-color: #dc3545 !important;
+  background-color: var(--danger) !important;
   color: #fff !important;
 }
 .toast {
@@ -196,9 +236,11 @@ body {
   .card { border-radius: 12px; }
   .pair-box { min-width: 28px; height: 40px; line-height: 40px; font-size: 1rem; }
   .navbar .navbar-brand { font-size: 1rem; }
+  .hero { flex-direction: column; align-items: flex-start; gap: 1rem; }
 }
 @media(max-width: 480px) {
   .pairing-code-flex { gap: 4px; }
   .pair-box { min-width: 24px; height: 36px; line-height: 36px; font-size: .9rem; }
   .btn { font-size: .85rem; padding: .4rem .75rem; }
+  .table { font-size: .85rem; }
 }
