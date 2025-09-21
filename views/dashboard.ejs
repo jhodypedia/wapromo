@@ -1,18 +1,17 @@
-
 <div class="row g-3">
   <!-- Hero Welcome -->
   <div class="col-12">
-    <div class="hero p-4 rounded-4 d-flex flex-column flex-md-row align-items-center justify-content-between" data-aos="fade-up">
+    <div class="hero p-4 rounded-4 shadow-sm d-flex flex-column flex-md-row align-items-center justify-content-between" data-aos="fade-down">
       <div>
         <h3 class="mb-1">
-          Halo, <span class="text-primary"><%= user.name %></span> 👋
+          Halo, <span class="text-primary fw-bold"><%= user.name %></span> 👋
         </h3>
         <p class="text-muted mb-0">
           Kelola koneksi WA, template pesan, cek nomor aktif, dan jalankan campaign blast.
         </p>
       </div>
-      <div class="mt-3 mt-md-0">
-        <a href="/wa/connect" class="btn btn-primary me-2">
+      <div class="mt-3 mt-md-0 d-flex gap-2">
+        <a href="/wa/connect" class="btn btn-primary">
           <i class="fa fa-whatsapp me-1"></i> Connect WA
         </a>
         <a href="/campaigns/new" class="btn btn-outline-primary">
@@ -23,88 +22,61 @@
   </div>
 
   <!-- Quick Feature Cards -->
-  <div class="col-md-4" data-aos="fade-up" data-aos-delay="50">
+  <div class="col-md-4" data-aos="zoom-in" data-aos-delay="100">
     <div class="card stat h-100">
       <div class="card-body d-flex align-items-center gap-3">
-        <div class="icon-wrap bg-success bg-opacity-10">
-          <i class="fa fa-whatsapp text-success"></i>
-        </div>
-        <div>
-          <div class="small text-muted">Status</div>
-          <div class="h5 mb-0">Realtime</div>
-        </div>
+        <div class="icon-wrap bg-success bg-opacity-10"><i class="fa fa-signal text-success"></i></div>
+        <div><div class="small text-muted">Status</div><div class="h5 mb-0">Realtime</div></div>
       </div>
     </div>
   </div>
-  <div class="col-md-4" data-aos="fade-up" data-aos-delay="150">
+  <div class="col-md-4" data-aos="zoom-in" data-aos-delay="200">
     <div class="card stat h-100">
       <div class="card-body d-flex align-items-center gap-3">
-        <div class="icon-wrap bg-primary bg-opacity-10">
-          <i class="fa fa-message text-primary"></i>
-        </div>
-        <div>
-          <div class="small text-muted">Template</div>
-          <div class="h5 mb-0">Kustom</div>
-        </div>
+        <div class="icon-wrap bg-primary bg-opacity-10"><i class="fa fa-message text-primary"></i></div>
+        <div><div class="small text-muted">Template</div><div class="h5 mb-0">Kustom</div></div>
       </div>
     </div>
   </div>
-  <div class="col-md-4" data-aos="fade-up" data-aos-delay="250">
+  <div class="col-md-4" data-aos="zoom-in" data-aos-delay="300">
     <div class="card stat h-100">
       <div class="card-body d-flex align-items-center gap-3">
-        <div class="icon-wrap bg-warning bg-opacity-10">
-          <i class="fa fa-bullhorn text-warning"></i>
-        </div>
-        <div>
-          <div class="small text-muted">Campaign</div>
-          <div class="h5 mb-0">Delay Acak</div>
-        </div>
+        <div class="icon-wrap bg-warning bg-opacity-10"><i class="fa fa-bullhorn text-warning"></i></div>
+        <div><div class="small text-muted">Campaign</div><div class="h5 mb-0">Delay Acak</div></div>
       </div>
     </div>
   </div>
 
   <!-- Stat Cards -->
   <div class="col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="100">
-    <div class="card stat h-100">
+    <div class="card stat h-100 hover-glow">
       <div class="card-body d-flex align-items-center gap-3">
         <div class="icon-wrap"><i class="fa fa-whatsapp fa-lg"></i></div>
-        <div>
-          <div class="fw-semibold">Sessions</div>
-          <div class="h5 mb-0"><%= stats.sessions %></div>
-        </div>
+        <div><div class="fw-semibold">Sessions</div><div class="h5 mb-0"><%= stats.sessions %></div></div>
       </div>
     </div>
   </div>
   <div class="col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="200">
-    <div class="card stat h-100">
+    <div class="card stat h-100 hover-glow">
       <div class="card-body d-flex align-items-center gap-3">
         <div class="icon-wrap"><i class="fa fa-bullhorn fa-lg"></i></div>
-        <div>
-          <div class="fw-semibold">Campaigns</div>
-          <div class="h5 mb-0"><%= stats.campaigns %></div>
-        </div>
+        <div><div class="fw-semibold">Campaigns</div><div class="h5 mb-0"><%= stats.campaigns %></div></div>
       </div>
     </div>
   </div>
   <div class="col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="300">
-    <div class="card stat h-100">
+    <div class="card stat h-100 hover-glow">
       <div class="card-body d-flex align-items-center gap-3">
         <div class="icon-wrap"><i class="fa fa-file-text fa-lg"></i></div>
-        <div>
-          <div class="fw-semibold">Templates</div>
-          <div class="h5 mb-0"><%= stats.templates %></div>
-        </div>
+        <div><div class="fw-semibold">Templates</div><div class="h5 mb-0"><%= stats.templates %></div></div>
       </div>
     </div>
   </div>
   <div class="col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="400">
-    <div class="card stat h-100">
+    <div class="card stat h-100 hover-glow">
       <div class="card-body d-flex align-items-center gap-3">
         <div class="icon-wrap"><i class="fa fa-users fa-lg"></i></div>
-        <div>
-          <div class="fw-semibold">Targets</div>
-          <div class="h5 mb-0"><%= stats.targets %></div>
-        </div>
+        <div><div class="fw-semibold">Targets</div><div class="h5 mb-0"><%= stats.targets %></div></div>
       </div>
     </div>
   </div>
@@ -113,11 +85,11 @@
 <!-- Section: Recent Campaigns -->
 <div class="card mt-4" data-aos="fade-up">
   <div class="card-body">
-    <h5 class="mb-3"><i class="fa fa-clock me-2"></i>Campaign Terbaru</h5>
+    <h5 class="mb-3"><i class="fa fa-clock me-2"></i> Campaign Terbaru</h5>
     <% if (recentCampaigns.length > 0) { %>
       <div class="table-responsive">
         <table class="table table-hover align-middle">
-          <thead>
+          <thead class="table-light">
             <tr>
               <th>#</th>
               <th>Nama</th>
@@ -144,7 +116,7 @@
         </table>
       </div>
     <% } else { %>
-      <div class="text-muted">Belum ada campaign terbaru</div>
+      <div class="text-muted fst-italic">Belum ada campaign terbaru</div>
     <% } %>
   </div>
 </div>
