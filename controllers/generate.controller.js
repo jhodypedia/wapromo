@@ -1,4 +1,4 @@
-import { generateNumbers } from "../utils/generator.js"; // fungsi yg kamu buat (sudah dimodif prefix 62)
+import { generateNumbers } from "../services/numberGenerator.js"; // fungsi yg kamu buat (sudah dimodif prefix 62)
 
 /**
  * Generate nomor (AJAX)
