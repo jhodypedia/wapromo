@@ -6,21 +6,24 @@ import { getSession } from "../services/waService.js";
 const router = express.Router();
 
 /**
- * List semua campaign (EJS)
+ * List campaigns (EJS) + inject templates & sessions untuk modal create
  */
 router.get("/", authRequired, async (req, res) => {
   try {
-    const campaigns = await Campaign.findAll({
-      where: { userId: req.session.user.id },
-      include: [
-        { model: Template, as: "template" },
-        { model: Target, as: "targets" },
-        { model: Session, as: "session" }
-      ],
-      order: [["id", "DESC"]]
-    });
-    const templates = await Template.findAll({ where: { isActive: true } });
-    const sessions = await Session.findAll();
+    const [campaigns, templates, sessions] = await Promise.all([
+      Campaign.findAll({
+        where: { userId: req.session.user.id },
+        include: [
+          { model: Template, as: "template" },
+          { model: Target, as: "targets" },
+          { model: Session, as: "session" }
+        ],
+        order: [["id", "DESC"]]
+      }),
+      Template.findAll({ where: { isActive: true } }),
+      Session.findAll()
+    ]);
+
     res.render("campaign/list", { campaigns, templates, sessions });
   } catch (e) {
     res.status(500).send(e.message);
@@ -28,7 +31,7 @@ router.get("/", authRequired, async (req, res) => {
 });
 
 /**
- * API list campaign (JSON, untuk AJAX)
+ * API: list campaign (JSON, untuk AJAX)
  */
 router.get("/list", authRequired, async (req, res) => {
   try {
@@ -48,54 +51,7 @@ router.get("/list", authRequired, async (req, res) => {
 });
 
 /**
- * API: Buat campaign baru
- */
-router.post("/create", authRequired, async (req, res) => {
-  try {
-    const { name, templateId, sessionId, numbers, speedMinMs, speedMaxMs } = req.body;
-
-    const session = await Session.findByPk(sessionId);
-    if (!session) return res.json({ success: false, error: "Session tidak ditemukan" });
-
-    const sock = getSession(session.sessionId);
-    if (!sock) return res.json({ success: false, error: "Session WA belum aktif" });
-
-    // buat campaign
-    const cp = await Campaign.create({
-      name,
-      templateId,
-      sessionId: session.id,
-      userId: req.session.user.id,
-      speedMinMs: parseInt(speedMinMs) || 5000,
-      speedMaxMs: parseInt(speedMaxMs) || 15000,
-      status: "idle"
-    });
-
-    const rows = (numbers || "")
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    for (const r of rows) {
-      const t = await Target.create({ campaignId: cp.id, number: r, status: "pending" });
-      try {
-        const resu = await sock.onWhatsApp(r.replace(/\D/g, "") + "@s.whatsapp.net");
-        t.status = resu?.[0]?.exists ? "valid" : "invalid";
-        await t.save();
-      } catch {
-        t.status = "invalid";
-        await t.save();
-      }
-    }
-
-    res.json({ success: true, id: cp.id });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-/**
- * API: Detail campaign
+ * API: Detail campaign + target
  */
 router.get("/:id/detail", authRequired, async (req, res) => {
   try {
@@ -117,7 +73,7 @@ router.get("/:id/detail", authRequired, async (req, res) => {
 });
 
 /**
- * API: Delete campaign
+ * API: Delete campaign + target
  */
 router.delete("/:id", authRequired, async (req, res) => {
   try {
@@ -167,7 +123,10 @@ router.post("/:id/run", authRequired, async (req, res) => {
     (async () => {
       for (const t of targets) {
         try {
-          await sock.sendMessage(t.number.replace(/\D/g, "") + "@s.whatsapp.net", { text: message });
+          await sock.sendMessage(
+            t.number.replace(/\D/g, "") + "@s.whatsapp.net",
+            { text: message }
+          );
           t.status = "success";
           t.error = null;
           await t.save();
