@@ -34,7 +34,7 @@
   <div class="mb-3">
     <label class="form-label">Hasil</label>
     <div class="input-group">
-      <textarea id="generatedNumbers" rows="10" class="form-control"><%= numbers.join("\\n") %></textarea>
+      <textarea id="generatedNumbers" rows="10" class="form-control"><%= numbers.join("\\n").replace(/\\\\n/g, "\\n").split("\\n").join("\\n") %></textarea>
       <button type="button" class="btn btn-outline-secondary" onclick="copyNumbers()">
         <i class="fa fa-copy"></i> Copy
       </button>
@@ -46,10 +46,8 @@
   function copyNumbers() {
     const textarea = document.getElementById("generatedNumbers");
     textarea.select();
-    textarea.setSelectionRange(0, 99999); // For mobile
+    textarea.setSelectionRange(0, 99999); // mobile
     document.execCommand("copy");
-
-    // Feedback sederhana
     alert("Nomor berhasil dicopy ke clipboard!");
   }
 </script>
