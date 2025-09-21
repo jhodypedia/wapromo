@@ -1,4 +1,3 @@
-<% layout('layouts/main') %>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0"><i class="fa fa-bullhorn me-2"></i>Campaign</h4>
   <a class="btn btn-primary" href="/campaigns/new"><i class="fa fa-plus me-2"></i>Buat Campaign</a>
