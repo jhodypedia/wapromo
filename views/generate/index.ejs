@@ -33,6 +33,23 @@
 <% if (numbers && numbers.length > 0) { %>
   <div class="mb-3">
     <label class="form-label">Hasil</label>
-    <textarea rows="10" class="form-control"><%= numbers.join("\\n") %></textarea>
+    <div class="input-group">
+      <textarea id="generatedNumbers" rows="10" class="form-control"><%= numbers.join("\\n") %></textarea>
+      <button type="button" class="btn btn-outline-secondary" onclick="copyNumbers()">
+        <i class="fa fa-copy"></i> Copy
+      </button>
+    </div>
   </div>
 <% } %>
+
+<script>
+  function copyNumbers() {
+    const textarea = document.getElementById("generatedNumbers");
+    textarea.select();
+    textarea.setSelectionRange(0, 99999); // For mobile
+    document.execCommand("copy");
+
+    // Feedback sederhana
+    alert("Nomor berhasil dicopy ke clipboard!");
+  }
+</script>
