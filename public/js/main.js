@@ -1,15 +1,32 @@
 document.addEventListener("DOMContentLoaded", () => {
   const socket = window.io ? io() : null;
 
-  // ========================
-  // RENDER SESSION CARD
-  // ========================
-  function renderSession(s) {
-    return `
+  // Klik card session → buka modal QR
+  function bindSessionClick() {
+    document.querySelectorAll(".clickable").forEach((el) => {
+      el.addEventListener("click", () => {
+        const sessionId = el.dataset.session;
+        document.getElementById("qrModalTitle").innerText = `Session: ${sessionId}`;
+        document.getElementById("qrContainer").innerHTML =
+          "<div class='text-muted'>Menunggu QR ...</div>";
+        document.getElementById("qrNote").innerText = "";
+        document.getElementById("qrModal").setAttribute("data-session", sessionId);
+        new bootstrap.Modal(document.getElementById("qrModal")).show();
+      });
+    });
+  }
+
+  // Load sessions
+  async function loadSessions() {
+    const res = await fetch("/wa/connect/list");
+    const sessions = await res.json();
+    document.getElementById("sessions").innerHTML = sessions
+      .map(
+        (s) => `
       <div class="col-md-4">
         <div class="card h-100 clickable" data-session="${s.sessionId}">
           <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between">
               <div>
                 <div class="fw-semibold">${s.label || s.sessionId}</div>
                 <div class="small text-muted">ID: ${s.sessionId}</div>
@@ -24,41 +41,13 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
           </div>
         </div>
-      </div>
-    `;
+      </div>`
+      )
+      .join("");
+    bindSessionClick();
   }
 
-  // ========================
-  // LOAD SESSION LIST
-  // ========================
-  async function loadSessions() {
-    try {
-      const res = await fetch("/wa/connect/list");
-      const sessions = await res.json();
-      document.getElementById("sessions").innerHTML = sessions
-        .map(renderSession)
-        .join("");
-
-      // klik card → buka modal QR
-      document.querySelectorAll(".clickable").forEach((el) => {
-        el.addEventListener("click", () => {
-          const sessionId = el.dataset.session;
-          document.getElementById("qrModalTitle").innerText = `Session: ${sessionId}`;
-          document.getElementById("qrContainer").innerHTML =
-            "<div class='text-muted'>Menunggu QR / Pairing code...</div>";
-          document.getElementById("qrNote").innerText = "";
-          document.getElementById("qrModal").setAttribute("data-session", sessionId);
-          new bootstrap.Modal(document.getElementById("qrModal")).show();
-        });
-      });
-    } catch (e) {
-      toastr.error("Gagal memuat session");
-    }
-  }
-
-  // ========================
-  // BUAT SESSION
-  // ========================
+  // Buat session baru
   const newSessionForm = document.getElementById("newSessionForm");
   if (newSessionForm) {
     newSessionForm.addEventListener("submit", async (e) => {
@@ -67,24 +56,28 @@ document.addEventListener("DOMContentLoaded", () => {
         sessionId: document.getElementById("sessionId").value.trim(),
         label: document.getElementById("label").value.trim(),
       };
-      const res = await fetch("/wa/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) {
-        toastr.success("Session dibuat");
-        loadSessions();
-        bootstrap.Modal.getInstance(document.getElementById("newSession")).hide();
-      } else {
-        toastr.error("Gagal membuat session");
-      }
+
+      document.getElementById("qrModalTitle").innerText = `Session: ${data.sessionId}`;
+      document.getElementById("qrContainer").innerHTML =
+        "<div class='text-muted'>Menunggu QR ...</div>";
+      document.getElementById("qrModal").setAttribute("data-session", data.sessionId);
+      new bootstrap.Modal(document.getElementById("qrModal")).show();
+
+      setTimeout(async () => {
+        const res = await fetch("/wa/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (!res.ok) {
+          document.getElementById("qrContainer").innerHTML =
+            "<div class='text-danger'>Gagal membuat session</div>";
+        }
+      }, 6000);
     });
   }
 
-  // ========================
-  // PAIRING FORM
-  // ========================
+  // Pairing Form
   const pairingForm = document.getElementById("pairingForm");
   if (pairingForm) {
     pairingForm.addEventListener("submit", async (e) => {
@@ -92,10 +85,18 @@ document.addEventListener("DOMContentLoaded", () => {
       const sessionId = document.getElementById("pairSession").value.trim();
       const phone = document.getElementById("pairPhone").value.trim();
       if (!sessionId || !phone) {
-        Swal.fire({ icon: "error", title: "Data kosong", text: "SessionId & Nomor WA wajib" });
+        alert("SessionId & Nomor WA wajib");
         return;
       }
-      try {
+
+      document.getElementById("qrModalTitle").innerText = `Pairing: ${sessionId}`;
+      document.getElementById("qrContainer").innerHTML =
+        "<div class='text-muted'>Menunggu kode pairing...</div>";
+      document.getElementById("qrNote").innerText = "";
+      document.getElementById("qrModal").setAttribute("data-session", sessionId);
+      new bootstrap.Modal(document.getElementById("qrModal")).show();
+
+      setTimeout(async () => {
         const res = await fetch("/wa/pairing", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -103,27 +104,28 @@ document.addEventListener("DOMContentLoaded", () => {
         }).then((r) => r.json());
 
         if (res.success) {
-          // tampilkan di modal QR juga
-          document.getElementById("qrModalTitle").innerText = `Pairing: ${sessionId}`;
+          const digits = res.code.trim().split("");
           document.getElementById("qrContainer").innerHTML = `
-            <div class="h3 text-primary">${res.code}</div>`;
+            <div class="pairing-code">
+              <span>${digits[0]}</span>
+              <span>${digits[1]}</span>
+              <span>${digits[2]}</span>
+              <div class="pairing-dash">-</div>
+              <span>${digits[3]}</span>
+              <span>${digits[4]}</span>
+              <span>${digits[5]}</span>
+            </div>`;
           document.getElementById("qrNote").innerText =
             "Masukkan kode ini di WhatsApp → Perangkat Tertaut";
-          document.getElementById("qrModal").setAttribute("data-session", sessionId);
-          new bootstrap.Modal(document.getElementById("qrModal")).show();
-          bootstrap.Modal.getInstance(document.getElementById("pairingModal")).hide();
         } else {
-          Swal.fire({ icon: "error", title: "Gagal", text: res.error || "Error" });
+          document.getElementById("qrContainer").innerHTML =
+            `<div class="text-danger">Gagal: ${res.error || "Tidak bisa generate kode"}</div>`;
         }
-      } catch (err) {
-        Swal.fire({ icon: "error", title: "Server Error", text: err.message });
-      }
+      }, 6000);
     });
   }
 
-  // ========================
-  // SOCKET.IO LISTENERS
-  // ========================
+  // Socket: QR update
   if (socket) {
     socket.on("wa_qr", ({ sessionId, qr }) => {
       const modal = document.getElementById("qrModal");
@@ -134,20 +136,14 @@ document.addEventListener("DOMContentLoaded", () => {
         new QRCode(el, { text: qr, width: 220, height: 220 });
         document.getElementById("qrNote").innerText =
           "Scan QR ini di WhatsApp → Perangkat Tertaut";
-        toastr.info("QR baru untuk " + sessionId);
       }
     });
 
-    socket.on("wa_status", ({ sessionId, status }) => {
-      toastr.success(`Session ${sessionId}: ${status}`);
+    socket.on("wa_status", () => {
       loadSessions();
     });
   }
 
-  // ========================
-  // INIT LOAD
-  // ========================
-  if (document.getElementById("sessions")) {
-    loadSessions();
-  }
+  // Init
+  if (document.getElementById("sessions")) loadSessions();
 });
