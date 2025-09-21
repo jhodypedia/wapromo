@@ -7,7 +7,7 @@
 
 <div class="card shadow-sm">
   <div class="card-body table-responsive">
-    <table id="templateTable" class="table table-hover align-middle w-100">
+    <table id="templateTable" class="table table-hover align-middle w-100 dataTable">
       <thead class="table-light">
         <tr>
           <th style="width:40px">#</th>
@@ -22,11 +22,13 @@
         <% templates.forEach((t, i) => { %>
           <tr data-id="<%= t.id %>">
             <td><%= i+1 %></td>
-            <td><%= t.title %></td>
+            <td class="fw-semibold"><%= t.title %></td>
             <td style="white-space:pre-wrap"><%= t.body %></td>
             <td>
               <% if (t.link) { %>
-                <a href="<%= t.link %>" target="_blank"><i class="fa fa-link me-1"></i>Link</a>
+                <a href="<%= t.link %>" target="_blank" class="text-decoration-none text-primary">
+                  <i class="fa fa-link me-1"></i>Link
+                </a>
               <% } %>
             </td>
             <td>
@@ -89,18 +91,19 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // Init DataTables
+  // Init DataTables dengan styling global
   const table = $('#templateTable').DataTable({
     responsive: true,
+    pagingType: "simple_numbers",
     language: {
       search: "Cari:",
-      lengthMenu: "Tampilkan _MENU_ entri",
+      lengthMenu: "Tampilkan _MENU_ data",
       info: "Menampilkan _START_ - _END_ dari _TOTAL_ data",
       paginate: { previous: "‹", next: "›" }
     }
   });
 
-  // Tambah / Edit Template
+  // Simpan Template (Tambah/Edit)
   document.getElementById("templateForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const id = document.getElementById("templateId").value;
@@ -129,27 +132,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Event delegation: Edit
+  // Edit
   $('#templateTable').on('click', '.edit-template', function () {
     const tr = $(this).closest('tr');
     const id = tr.data('id');
 
-    const title = tr.children().eq(1).text();
-    const body  = tr.children().eq(2).text();
-    const link  = tr.children().eq(3).find('a').attr('href') || "";
-    const status = tr.find("span.badge").text().trim() === "Aktif" ? "true" : "false";
-
     $('#templateId').val(id);
-    $('#title').val(title);
-    $('#body').val(body);
-    $('#link').val(link);
-    $('#isActive').val(status);
+    $('#title').val(tr.children().eq(1).text());
+    $('#body').val(tr.children().eq(2).text());
+    $('#link').val(tr.children().eq(3).find('a').attr('href') || "");
+    $('#isActive').val(tr.find("span.badge").text().trim() === "Aktif" ? "true" : "false");
 
     $('#modalTitle').text("Edit Template");
     new bootstrap.Modal(document.getElementById("templateModal")).show();
   });
 
-  // Event delegation: Delete
+  // Delete
   $('#templateTable').on('click', '.delete-template', async function () {
     const tr = $(this).closest('tr');
     const id = tr.data('id');
