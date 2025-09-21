@@ -8,9 +8,6 @@ export const operatorPrefixes = {
   byu:       ["62851"]
 };
 
-/**
- * Generate random phone numbers by operator
- */
 export function generateNumbers(operator, count = 10, length = 12) {
   const prefixes = operatorPrefixes[operator];
   if (!prefixes) throw new Error("Operator tidak valid");
