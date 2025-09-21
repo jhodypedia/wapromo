@@ -14,11 +14,61 @@
         <th>Template</th>
         <th>Status</th>
         <th>Target</th>
-        <th style="width:160px">Aksi</th>
+        <th style="width:150px">Aksi</th>
       </tr>
     </thead>
     <tbody id="campaignTableBody">
-      <tr><td colspan="6" class="text-center text-muted">Memuat...</td></tr>
+      <% if (campaigns.length === 0) { %>
+        <tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>
+      <% } else { %>
+        <% campaigns.forEach((c, i) => { 
+          const total = c.targets.length;
+          const valid = c.targets.filter(t=>t.status==="valid").length;
+          const invalid = c.targets.filter(t=>t.status==="invalid").length;
+          const success = c.targets.filter(t=>t.status==="success").length;
+          const error = c.targets.filter(t=>t.status==="error").length;
+        %>
+        <tr>
+          <td><%= i+1 %></td>
+          <td class="fw-semibold"><%= c.name %></td>
+          <td><%= c.template ? c.template.name : "-" %></td>
+          <td>
+            <span class="badge rounded-pill bg-<%= 
+              c.status==="done" ? "success" : 
+              c.status==="running" ? "warning" : "secondary" 
+            %> px-3 py-2">
+              <%= c.status %>
+            </span>
+          </td>
+          <td>
+            <div class="d-flex flex-wrap gap-1 small">
+              <span class="badge bg-info">T:<%= total %></span>
+              <span class="badge bg-success">V:<%= valid %></span>
+              <span class="badge bg-danger">I:<%= invalid %></span>
+              <span class="badge bg-primary">S:<%= success %></span>
+              <span class="badge bg-dark">E:<%= error %></span>
+            </div>
+          </td>
+          <td class="d-flex gap-1">
+            <% if (c.status==="idle") { %>
+              <button class="btn btn-sm btn-success run-campaign" data-id="<%= c.id %>">
+                <i class="fa fa-play"></i>
+              </button>
+            <% } else if (c.status==="running") { %>
+              <button class="btn btn-sm btn-secondary" disabled>
+                <i class="fa fa-spinner fa-spin"></i>
+              </button>
+            <% } %>
+            <button class="btn btn-sm btn-info text-white detail-campaign" data-id="<%= c.id %>">
+              <i class="fa fa-eye"></i>
+            </button>
+            <button class="btn btn-sm btn-danger delete-campaign" data-id="<%= c.id %>">
+              <i class="fa fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+        <% }) %>
+      <% } %>
     </tbody>
   </table>
 </div>
@@ -28,60 +78,54 @@
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header border-0">
-        <h5 class="modal-title"><i class="fa fa-plus text-primary me-2"></i>Buat Campaign</h5>
+        <h5 class="modal-title"><i class="fa fa-plus text-primary me-2"></i>Campaign Baru</h5>
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
-        <form id="createCampaignForm">
+      <form id="createCampaignForm">
+        <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">Nama Campaign</label>
-            <input type="text" class="form-control" name="name" required>
+            <input type="text" name="name" class="form-control" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Template</label>
-            <select class="form-select" name="templateId" required>
+            <select name="templateId" class="form-select" required>
               <option value="">-- Pilih Template --</option>
-              <% if (templates && templates.length) { %>
-                <% templates.forEach(t => { %>
-                  <option value="<%= t.id %>"><%= t.name %></option>
-                <% }) %>
-              <% } else { %>
-                <option disabled>Tidak ada template aktif</option>
-              <% } %>
+              <% templates.forEach(t => { %>
+                <option value="<%= t.id %>"><%= t.name %></option>
+              <% }) %>
             </select>
           </div>
           <div class="mb-3">
             <label class="form-label">Session</label>
-            <select class="form-select" name="sessionId" required>
+            <select name="sessionId" class="form-select" required>
               <option value="">-- Pilih Session --</option>
-              <% if (sessions && sessions.length) { %>
-                <% sessions.forEach(s => { %>
-                  <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
-                <% }) %>
-              <% } else { %>
-                <option disabled>Belum ada session</option>
-              <% } %>
+              <% sessions.forEach(s => { %>
+                <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
+              <% }) %>
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label">Nomor Target (pisahkan baris)</label>
-            <textarea class="form-control" name="numbers" rows="4" required></textarea>
+            <label class="form-label">Target Numbers</label>
+            <textarea name="numbers" class="form-control" rows="4" placeholder="628xxxx (satu per baris)" required></textarea>
           </div>
           <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Delay Min (ms)</label>
-              <input type="number" class="form-control" name="speedMinMs" value="5000">
+            <div class="col">
+              <label class="form-label">Speed Min (ms)</label>
+              <input type="number" name="speedMinMs" class="form-control" value="5000">
             </div>
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Delay Max (ms)</label>
-              <input type="number" class="form-control" name="speedMaxMs" value="15000">
+            <div class="col">
+              <label class="form-label">Speed Max (ms)</label>
+              <input type="number" name="speedMaxMs" class="form-control" value="15000">
             </div>
           </div>
-          <div class="text-end">
-            <button class="btn btn-primary"><i class="fa fa-save me-1"></i>Simpan</button>
-          </div>
-        </form>
-      </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">
+            <i class="fa fa-save me-1"></i>Simpan
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -112,6 +156,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   toastr.options = { closeButton:true, progressBar:true, positionClass:"toast-top-right", timeOut:"3000" };
 
+  // Load campaigns via AJAX
   async function loadCampaigns() {
     try {
       const res = await fetch("/campaigns/list");
@@ -122,7 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>';
         return;
       }
-      data.forEach((c, i) => {
+      data.forEach((c,i) => {
         const total = c.targets.length;
         const valid = c.targets.filter(t=>t.status==="valid").length;
         const invalid = c.targets.filter(t=>t.status==="invalid").length;
@@ -145,9 +190,9 @@ document.addEventListener("DOMContentLoaded", () => {
               </div>
             </td>
             <td class="d-flex gap-1">
-              ${c.status==="idle"
-                ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}"><i class="fa fa-play"></i></button>`
-                : (c.status==="running" ? `<button class="btn btn-sm btn-secondary" disabled><i class="fa fa-spinner fa-spin"></i></button>` : "")
+              ${c.status==="idle" ? 
+                `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}"><i class="fa fa-play"></i></button>` : 
+                (c.status==="running" ? `<button class="btn btn-sm btn-secondary" disabled><i class="fa fa-spinner fa-spin"></i></button>` : "")
               }
               <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${c.id}"><i class="fa fa-eye"></i></button>
               <button class="btn btn-sm btn-danger delete-campaign" data-id="${c.id}"><i class="fa fa-trash"></i></button>
@@ -161,6 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function bindActions() {
+    // Run
     document.querySelectorAll(".run-campaign").forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         const id = btn.dataset.id;
@@ -170,11 +216,12 @@ document.addEventListener("DOMContentLoaded", () => {
           toastr.success("Campaign dijalankan");
           loadCampaigns();
         } else {
-          toastr.error(json.error || "Gagal menjalankan campaign");
+          toastr.error(json.error || "Gagal menjalankan");
         }
       });
     });
 
+    // Delete
     document.querySelectorAll(".delete-campaign").forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         const id = btn.dataset.id;
@@ -199,6 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
+    // Detail
     document.querySelectorAll(".detail-campaign").forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         const id = btn.dataset.id;
@@ -228,25 +276,31 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Handle submit create campaign
-  document.getElementById("createCampaignForm")?.addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    const form = e.target;
-    const data = Object.fromEntries(new FormData(form).entries());
-    const res = await fetch("/campaigns/new", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify(data)
+  // Create Campaign
+  const createForm = document.getElementById("createCampaignForm");
+  if (createForm) {
+    createForm.addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      const formData = new FormData(createForm);
+      const data = Object.fromEntries(formData.entries());
+      try {
+        const res = await fetch("/campaigns/new", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(data)
+        });
+        if (res.ok) {
+          toastr.success("Campaign berhasil dibuat");
+          bootstrap.Modal.getInstance(document.getElementById("campaignModal"))?.hide();
+          loadCampaigns();
+        } else {
+          toastr.error("Gagal membuat campaign");
+        }
+      } catch {
+        toastr.error("Server error saat membuat campaign");
+      }
     });
-    if (res.ok) {
-      toastr.success("Campaign dibuat");
-      bootstrap.Modal.getInstance(document.getElementById("campaignModal"))?.hide();
-      form.reset();
-      loadCampaigns();
-    } else {
-      toastr.error("Gagal membuat campaign");
-    }
-  });
+  }
 
   loadCampaigns();
 });
