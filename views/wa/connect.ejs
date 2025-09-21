@@ -1,11 +1,13 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0"><i class="fa fa-whatsapp text-success me-2"></i>Koneksi WhatsApp</h4>
+  <h4 class="mb-0">
+    <i class="fa fa-whatsapp text-success me-2"></i>Koneksi WhatsApp
+  </h4>
   <div class="d-flex gap-2">
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSession">
       <i class="fa fa-plus me-2"></i>Tambah Session
     </button>
-    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#pairingModal">
-      <i class="fa fa-link me-2"></i>Pairing 6 Digit
+    <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#pairingModal">
+      <i class="fa fa-link me-2"></i>Pairing Code
     </button>
   </div>
 </div>
@@ -18,9 +20,9 @@
 <div class="modal fade" id="newSession" tabindex="-1">
   <div class="modal-dialog">
     <form id="newSessionForm" class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Buat Session Baru</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="fa fa-plus me-2"></i>Buat Session Baru</h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="mb-3">
@@ -30,6 +32,13 @@
         <div class="mb-3">
           <label class="form-label">Label</label>
           <input id="label" class="form-control" placeholder="Akun Toko #1">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Mode</label>
+          <select id="mode" class="form-select">
+            <option value="qr" selected>QR Code</option>
+            <option value="pairing">Pairing Code</option>
+          </select>
         </div>
       </div>
       <div class="modal-footer">
@@ -44,9 +53,9 @@
 <div class="modal fade" id="pairingModal" tabindex="-1">
   <div class="modal-dialog">
     <form id="pairingForm" class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pairing 6 Digit</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fa fa-link me-2"></i>Pairing Code</h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="mb-3">
@@ -59,7 +68,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-primary">Generate Code</button>
+        <button class="btn btn-success">Generate Code</button>
       </div>
     </form>
   </div>
@@ -68,13 +77,13 @@
 <!-- Modal: QR / Pairing Display -->
 <div class="modal fade" id="qrModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
+    <div class="modal-content shadow">
+      <div class="modal-header bg-dark text-white">
         <h5 id="qrModalTitle" class="modal-title">Session</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body text-center">
-        <div id="qrContainer" class="my-3">
+        <div id="qrContainer" class="my-3 p-3 border rounded bg-light">
           <div class="text-muted">Menunggu QR / Pairing code...</div>
         </div>
         <div id="qrNote" class="small text-muted"></div>
