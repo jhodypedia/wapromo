@@ -14,13 +14,76 @@
         <th>Template</th>
         <th>Status</th>
         <th>Target</th>
-        <th style="width:140px">Aksi</th>
+        <th style="width:160px">Aksi</th>
       </tr>
     </thead>
     <tbody id="campaignTableBody">
-      <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+      <tr><td colspan="6" class="text-center text-muted">Memuat...</td></tr>
     </tbody>
   </table>
+</div>
+
+<!-- Modal Create Campaign -->
+<div class="modal fade" id="campaignModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title"><i class="fa fa-plus text-primary me-2"></i>Buat Campaign</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="createCampaignForm">
+          <div class="mb-3">
+            <label class="form-label">Nama Campaign</label>
+            <input type="text" class="form-control" name="name" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Template</label>
+            <select class="form-select" name="templateId" required>
+              <option value="">-- Pilih Template --</option>
+              <% if (templates && templates.length) { %>
+                <% templates.forEach(t => { %>
+                  <option value="<%= t.id %>"><%= t.name %></option>
+                <% }) %>
+              <% } else { %>
+                <option disabled>Tidak ada template aktif</option>
+              <% } %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Session</label>
+            <select class="form-select" name="sessionId" required>
+              <option value="">-- Pilih Session --</option>
+              <% if (sessions && sessions.length) { %>
+                <% sessions.forEach(s => { %>
+                  <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
+                <% }) %>
+              <% } else { %>
+                <option disabled>Belum ada session</option>
+              <% } %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nomor Target (pisahkan baris)</label>
+            <textarea class="form-control" name="numbers" rows="4" required></textarea>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Delay Min (ms)</label>
+              <input type="number" class="form-control" name="speedMinMs" value="5000">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Delay Max (ms)</label>
+              <input type="number" class="form-control" name="speedMaxMs" value="15000">
+            </div>
+          </div>
+          <div class="text-end">
+            <button class="btn btn-primary"><i class="fa fa-save me-1"></i>Simpan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Modal Detail Campaign -->
@@ -38,64 +101,6 @@
   </div>
 </div>
 
-<!-- Modal Create Campaign -->
-<div class="modal fade" id="campaignModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header border-0">
-        <h5 class="modal-title"><i class="fa fa-plus text-primary me-2"></i>Buat Campaign Baru</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <form id="createCampaignForm">
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Nama Campaign</label>
-            <input type="text" class="form-control" name="name" required placeholder="Promo Januari">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Pilih Template</label>
-            <select class="form-select" name="templateId" required>
-              <option value="">-- Pilih Template --</option>
-              <% templates.forEach(t=>{ %>
-                <option value="<%= t.id %>"><%= t.name %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Pilih Session</label>
-            <select class="form-select" name="sessionId" required>
-              <option value="">-- Pilih Session --</option>
-              <% sessions.forEach(s=>{ %>
-                <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Daftar Nomor (1 per baris)</label>
-            <textarea class="form-control" name="numbers" rows="5" required></textarea>
-          </div>
-          <div class="row">
-            <div class="col">
-              <label class="form-label">Min Delay (ms)</label>
-              <input type="number" class="form-control" name="speedMinMs" value="5000">
-            </div>
-            <div class="col">
-              <label class="form-label">Max Delay (ms)</label>
-              <input type="number" class="form-control" name="speedMaxMs" value="15000">
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-          <button type="submit" class="btn btn-primary">
-            <i class="fa fa-save me-1"></i>Simpan
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
 <style>
   .table td, .table th { vertical-align: middle; }
   .badge { font-size: .75rem; font-weight: 500; }
@@ -105,10 +110,8 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const socket = window.io ? io() : null;
   toastr.options = { closeButton:true, progressBar:true, positionClass:"toast-top-right", timeOut:"3000" };
 
-  // Load campaigns
   async function loadCampaigns() {
     try {
       const res = await fetch("/campaigns/list");
@@ -127,14 +130,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const error = c.targets.filter(t=>t.status==="error").length;
 
         tbody.innerHTML += `
-          <tr id="campaign-row-${c.id}">
+          <tr>
             <td>${i+1}</td>
             <td class="fw-semibold">${c.name}</td>
             <td>${c.template ? c.template.name : "-"}</td>
-            <td id="status-${c.id}">
-              <span class="badge rounded-pill bg-${c.status==="done"?"success":(c.status==="running"?"warning":"secondary")} px-3 py-2">${c.status}</span>
-            </td>
-            <td id="targets-${c.id}">
+            <td><span class="badge rounded-pill bg-${c.status==="done"?"success":(c.status==="running"?"warning":"secondary")} px-3 py-2">${c.status}</span></td>
+            <td>
               <div class="d-flex flex-wrap gap-1 small">
                 <span class="badge bg-info">T:${total}</span>
                 <span class="badge bg-success">V:${valid}</span>
@@ -143,7 +144,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span class="badge bg-dark">E:${error}</span>
               </div>
             </td>
-            <td class="d-flex gap-1" id="actions-${c.id}">
+            <td class="d-flex gap-1">
               ${c.status==="idle"
                 ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}"><i class="fa fa-play"></i></button>`
                 : (c.status==="running" ? `<button class="btn btn-sm btn-secondary" disabled><i class="fa fa-spinner fa-spin"></i></button>` : "")
@@ -159,7 +160,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Bind aksi run, delete, detail
   function bindActions() {
     document.querySelectorAll(".run-campaign").forEach(btn=>{
       btn.addEventListener("click", async ()=>{
@@ -215,7 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <p class="mb-2"><b>Template:</b> ${cp.template ? cp.template.name : "-"}</p>
             <hr>
             <h6 class="fw-bold">Target</h6>
-            <ul class="list-group small" id="detail-targets-${cp.id}">
+            <ul class="list-group small">
               ${cp.targets.map(t=>`<li class="list-group-item d-flex justify-content-between align-items-center">
                 <span>${t.number}</span>
                 <span class="badge bg-${t.status==="success"?"success":(t.status==="error"?"danger":(t.status==="valid"?"info":"secondary"))}">${t.status}</span>
@@ -228,59 +228,25 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Create campaign
-  const createForm = document.getElementById("createCampaignForm");
-  if (createForm) {
-    createForm.addEventListener("submit", async (e)=>{
-      e.preventDefault();
-      const formData = new FormData(createForm);
-      const payload = Object.fromEntries(formData.entries());
-      try {
-        const res = await fetch("/campaigns/new", {
-          method:"POST",
-          headers: { "Content-Type":"application/json" },
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          toastr.success("Campaign berhasil dibuat");
-          bootstrap.Modal.getInstance(document.getElementById("campaignModal")).hide();
-          createForm.reset();
-          loadCampaigns();
-        } else {
-          toastr.error("Gagal membuat campaign");
-        }
-      } catch(err) {
-        toastr.error("Server error saat membuat campaign");
-      }
+  // Handle submit create campaign
+  document.getElementById("createCampaignForm")?.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const form = e.target;
+    const data = Object.fromEntries(new FormData(form).entries());
+    const res = await fetch("/campaigns/new", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(data)
     });
-  }
-
-  // Real-time update dari socket
-  if (socket) {
-    socket.on("campaign_progress", ({ campaignId, number, status }) => {
-      const row = document.getElementById(`campaign-row-${campaignId}`);
-      if (row) {
-        document.getElementById(`status-${campaignId}`).innerHTML =
-          `<span class="badge rounded-pill bg-warning px-3 py-2">running</span>`;
-      }
-    });
-
-    socket.on("campaign_done", ({ campaignId }) => {
-      const row = document.getElementById(`campaign-row-${campaignId}`);
-      if (row) {
-        document.getElementById(`status-${campaignId}`).innerHTML =
-          `<span class="badge rounded-pill bg-success px-3 py-2">done</span>`;
-        document.getElementById(`actions-${campaignId}`).innerHTML = `
-          <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${campaignId}">
-            <i class="fa fa-eye"></i>
-          </button>
-          <button class="btn btn-sm btn-danger delete-campaign" data-id="${campaignId}">
-            <i class="fa fa-trash"></i>
-          </button>`;
-        bindActions();
-      }
-    });
-  }
+    if (res.ok) {
+      toastr.success("Campaign dibuat");
+      bootstrap.Modal.getInstance(document.getElementById("campaignModal"))?.hide();
+      form.reset();
+      loadCampaigns();
+    } else {
+      toastr.error("Gagal membuat campaign");
+    }
+  });
 
   loadCampaigns();
 });
