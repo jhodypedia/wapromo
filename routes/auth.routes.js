@@ -1,0 +1,10 @@
+import express from "express";
+import { getLogin, postLogin, getRegister, postRegister, logout } from "../controllers/auth.controller.js";
+import { guestOnly, authRequired } from "../middlewares/auth.js";
+const router = express.Router();
+router.get("/login", guestOnly, getLogin);
+router.post("/login", guestOnly, postLogin);
+router.get("/register", guestOnly, getRegister);
+router.post("/register", guestOnly, postRegister);
+router.get("/logout", authRequired, logout);
+export default router;
