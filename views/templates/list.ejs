@@ -7,7 +7,7 @@
 
 <div class="card shadow-sm">
   <div class="card-body table-responsive">
-    <table id="templateTable" class="table table-hover align-middle w-100 dataTable">
+    <table id="templateTable" class="table table-hover align-middle w-100">
       <thead class="table-light">
         <tr>
           <th style="width:40px">#</th>
@@ -15,18 +15,18 @@
           <th>Isi</th>
           <th>Link</th>
           <th>Status</th>
-          <th style="width:140px">Aksi</th>
+          <th style="width:100px">Aksi</th>
         </tr>
       </thead>
       <tbody>
         <% templates.forEach((t, i) => { %>
           <tr data-id="<%= t.id %>">
             <td><%= i+1 %></td>
-            <td class="fw-semibold"><%= t.title %></td>
+            <td><%= t.title %></td>
             <td style="white-space:pre-wrap"><%= t.body %></td>
             <td>
               <% if (t.link) { %>
-                <a href="<%= t.link %>" target="_blank" class="text-decoration-none text-primary">
+                <a href="<%= t.link %>" target="_blank" class="text-decoration-none">
                   <i class="fa fa-link me-1"></i>Link
                 </a>
               <% } %>
@@ -36,13 +36,15 @@
                 <%= t.isActive ? 'Aktif' : 'Nonaktif' %>
               </span>
             </td>
-            <td class="d-flex gap-1">
-              <button class="btn btn-sm btn-warning edit-template">
-                <i class="fa fa-pen"></i>
-              </button>
-              <button class="btn btn-sm btn-danger delete-template">
-                <i class="fa fa-trash"></i>
-              </button>
+            <td>
+              <div class="btn-group btn-group-sm" role="group">
+                <button class="btn btn-outline-warning edit-template" title="Edit">
+                  <i class="fa fa-pen"></i>
+                </button>
+                <button class="btn btn-outline-danger delete-template" title="Hapus">
+                  <i class="fa fa-trash"></i>
+                </button>
+              </div>
             </td>
           </tr>
         <% }) %>
@@ -91,19 +93,21 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // Init DataTables dengan styling global
-  const table = $('#templateTable').DataTable({
+  // Init DataTables dengan global style
+  $('#templateTable').DataTable({
     responsive: true,
-    pagingType: "simple_numbers",
+    pageLength: 5,
+    lengthMenu: [5, 10, 25, 50],
     language: {
       search: "Cari:",
       lengthMenu: "Tampilkan _MENU_ data",
       info: "Menampilkan _START_ - _END_ dari _TOTAL_ data",
-      paginate: { previous: "‹", next: "›" }
+      paginate: { previous: "‹", next: "›" },
+      zeroRecords: "Tidak ada data ditemukan"
     }
   });
 
-  // Simpan Template (Tambah/Edit)
+  // Tambah / Edit Template
   document.getElementById("templateForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const id = document.getElementById("templateId").value;
@@ -132,22 +136,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Edit
+  // Edit Template
   $('#templateTable').on('click', '.edit-template', function () {
     const tr = $(this).closest('tr');
     const id = tr.data('id');
+    const title = tr.children().eq(1).text();
+    const body  = tr.children().eq(2).text();
+    const link  = tr.children().eq(3).find('a').attr('href') || "";
+    const status = tr.find("span.badge").text().trim() === "Aktif" ? "true" : "false";
 
     $('#templateId').val(id);
-    $('#title').val(tr.children().eq(1).text());
-    $('#body').val(tr.children().eq(2).text());
-    $('#link').val(tr.children().eq(3).find('a').attr('href') || "");
-    $('#isActive').val(tr.find("span.badge").text().trim() === "Aktif" ? "true" : "false");
+    $('#title').val(title);
+    $('#body').val(body);
+    $('#link').val(link);
+    $('#isActive').val(status);
 
     $('#modalTitle').text("Edit Template");
     new bootstrap.Modal(document.getElementById("templateModal")).show();
   });
 
-  // Delete
+  // Delete Template
   $('#templateTable').on('click', '.delete-template', async function () {
     const tr = $(this).closest('tr');
     const id = tr.data('id');
