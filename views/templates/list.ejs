@@ -1,6 +1,6 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h4 class="mb-0"><i class="fa fa-message text-primary me-2"></i>Template Pesan</h4>
-  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#templateModal" id="btnAddTemplate">
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#templateModal">
     <i class="fa fa-plus me-2"></i>Tambah Template
   </button>
 </div>
@@ -8,7 +8,7 @@
 <div class="card shadow-sm">
   <div class="card-body">
     <div class="table-responsive">
-      <table id="templateTable" class="table table-striped table-hover align-middle w-100">
+      <table id="templateTable" class="table table-hover align-middle nowrap w-100">
         <thead class="table-light">
           <tr>
             <th style="width:50px">#</th>
@@ -19,68 +19,63 @@
             <th style="width:120px">Aksi</th>
           </tr>
         </thead>
-        <tbody id="templateTableBody">
-          <% if (templates.length === 0) { %>
-            <tr><td colspan="6" class="text-center text-muted">Belum ada template</td></tr>
-          <% } else { %>
-            <% templates.forEach((t,i) => { %>
-              <tr data-id="<%= t.id %>">
-                <td><%= i+1 %></td>
-                <td class="fw-semibold"><%= t.title %></td>
-                <td style="white-space:pre-wrap"><%= t.body %></td>
-                <td><% if (t.link) { %><a href="<%= t.link %>" target="_blank"><%= t.link %></a><% } %></td>
-                <td>
-                  <span class="badge <%= t.isActive ? 'bg-success' : 'bg-secondary' %>">
-                    <%= t.isActive ? 'Aktif' : 'Nonaktif' %>
-                  </span>
-                </td>
-                <td>
-                  <button class="btn btn-sm btn-warning edit-template" data-id="<%= t.id %>">
-                    <i class="fa fa-edit"></i>
-                  </button>
-                  <button class="btn btn-sm btn-danger delete-template" data-id="<%= t.id %>">
-                    <i class="fa fa-trash"></i>
-                  </button>
-                </td>
-              </tr>
-            <% }) %>
-          <% } %>
+        <tbody>
+          <% templates.forEach((t,i)=>{ %>
+            <tr data-id="<%= t.id %>">
+              <td><%= i+1 %></td>
+              <td><%= t.title %></td>
+              <td style="white-space:pre-wrap; max-width:300px"><%= t.body %></td>
+              <td><a href="<%= t.link %>" target="_blank"><%= t.link %></a></td>
+              <td>
+                <span class="badge <%= t.isActive ? 'bg-success' : 'bg-secondary' %>">
+                  <%= t.isActive ? 'Aktif' : 'Nonaktif' %>
+                </span>
+              </td>
+              <td class="d-flex gap-1">
+                <button class="btn btn-sm btn-warning edit-template"><i class="fa fa-edit"></i></button>
+                <button class="btn btn-sm btn-danger delete-template"><i class="fa fa-trash"></i></button>
+              </td>
+            </tr>
+          <% }) %>
         </tbody>
       </table>
     </div>
   </div>
 </div>
 
-<!-- Modal: Tambah / Edit Template -->
+<!-- Modal Tambah/Edit Template -->
 <div class="modal fade" id="templateModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title"><i class="fa fa-pen me-2 text-primary"></i><span id="modalTitle">Tambah Template</span></h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
       <form id="templateForm">
-        <div class="modal-header border-0">
-          <h5 class="modal-title"><i class="fa fa-pen me-2 text-primary"></i><span id="modalTitle">Tambah Template</span></h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
         <div class="modal-body">
           <input type="hidden" id="templateId">
           <div class="mb-3">
             <label class="form-label">Judul</label>
-            <input type="text" class="form-control" id="title" required>
+            <input type="text" id="title" class="form-control" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Isi Pesan</label>
-            <textarea class="form-control" id="body" rows="4" required></textarea>
+            <textarea id="body" class="form-control" rows="4" required></textarea>
           </div>
           <div class="mb-3">
             <label class="form-label">Link (opsional)</label>
-            <input type="url" class="form-control" id="link">
+            <input type="url" id="link" class="form-control">
           </div>
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" id="isActive" checked>
-            <label class="form-check-label" for="isActive">Aktif</label>
+          <div class="mb-3">
+            <label class="form-label">Status</label>
+            <select id="isActive" class="form-select">
+              <option value="true">Aktif</option>
+              <option value="false">Nonaktif</option>
+            </select>
           </div>
         </div>
         <div class="modal-footer border-0">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
           <button type="submit" class="btn btn-primary">Simpan</button>
         </div>
       </form>
@@ -90,106 +85,112 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // Inisialisasi DataTable
-  const table = new DataTable('#templateTable', {
+  const table = $("#templateTable").DataTable({
     responsive: true,
     pageLength: 5,
     lengthMenu: [5, 10, 25, 50],
-    language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json" }
+    language: {
+      search: "Cari:",
+      lengthMenu: "Tampilkan _MENU_",
+      info: "Menampilkan _START_ sampai _END_ dari _TOTAL_ data",
+      paginate: { next: "»", previous: "«" },
+      zeroRecords: "Tidak ada data"
+    }
   });
 
-  const templateModal = new bootstrap.Modal(document.getElementById("templateModal"));
+  const modalEl = document.getElementById("templateModal");
+  const modal = new bootstrap.Modal(modalEl);
   const form = document.getElementById("templateForm");
+  const idInput = document.getElementById("templateId");
+  const titleInput = document.getElementById("title");
+  const bodyInput = document.getElementById("body");
+  const linkInput = document.getElementById("link");
+  const isActiveInput = document.getElementById("isActive");
+  const modalTitle = document.getElementById("modalTitle");
 
-  // Tambah Template
-  document.getElementById("btnAddTemplate").addEventListener("click", () => {
-    document.getElementById("modalTitle").innerText = "Tambah Template";
+  // Tambah baru
+  document.querySelector('[data-bs-target="#templateModal"]').addEventListener("click", () => {
     form.reset();
-    document.getElementById("templateId").value = "";
-    document.getElementById("isActive").checked = true;
+    idInput.value = "";
+    modalTitle.textContent = "Tambah Template";
   });
 
-  // Edit Template
+  // Submit form (create/update)
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = idInput.value;
+    const payload = {
+      title: titleInput.value,
+      body: bodyInput.value,
+      link: linkInput.value,
+      isActive: isActiveInput.value
+    };
+    const method = id ? "PUT" : "POST";
+    const url = id ? `/templates/${id}` : "/templates";
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (json.success) {
+        Swal.fire("Berhasil", json.msg, "success");
+        modal.hide();
+        location.reload(); // refresh tabel
+      } else {
+        Swal.fire("Error", json.error || "Gagal simpan template", "error");
+      }
+    } catch (err) {
+      Swal.fire("Error", "Server error", "error");
+    }
+  });
+
+  // Edit template
   document.querySelectorAll(".edit-template").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const id = btn.dataset.id;
-      try {
-        const res = await fetch(`/templates/${id}`);
-        const json = await res.json();
-        if (json.success) {
-          const t = json.template;
-          document.getElementById("modalTitle").innerText = "Edit Template";
-          document.getElementById("templateId").value = t.id;
-          document.getElementById("title").value = t.title;
-          document.getElementById("body").value = t.body;
-          document.getElementById("link").value = t.link || "";
-          document.getElementById("isActive").checked = t.isActive;
-          templateModal.show();
-        } else {
-          Swal.fire("Error", json.error || "Gagal memuat template", "error");
-        }
-      } catch (err) {
-        Swal.fire("Error", "Server error saat memuat template", "error");
+      const id = btn.closest("tr").dataset.id;
+      const res = await fetch(`/templates/${id}`);
+      const json = await res.json();
+      if (json.success) {
+        const t = json.template;
+        idInput.value = t.id;
+        titleInput.value = t.title;
+        bodyInput.value = t.body;
+        linkInput.value = t.link || "";
+        isActiveInput.value = t.isActive ? "true" : "false";
+        modalTitle.textContent = "Edit Template";
+        modal.show();
+      } else {
+        Swal.fire("Error", json.error || "Gagal ambil data", "error");
       }
     });
   });
 
-  // Hapus Template
+  // Delete template
   document.querySelectorAll(".delete-template").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const id = btn.dataset.id;
+      const id = btn.closest("tr").dataset.id;
       const confirm = await Swal.fire({
         title: "Hapus Template?",
-        text: "Data tidak bisa dikembalikan.",
+        text: "Data ini tidak bisa dikembalikan.",
         icon: "warning",
         showCancelButton: true,
         confirmButtonText: "Ya, hapus",
         cancelButtonText: "Batal"
       });
       if (confirm.isConfirmed) {
-        try {
-          const res = await fetch(`/templates/${id}`, { method: "DELETE" });
-          const json = await res.json();
-          if (json.success) {
-            Swal.fire("Deleted", "Template berhasil dihapus", "success")
-              .then(() => location.reload());
-          } else {
-            Swal.fire("Error", json.error || "Gagal menghapus template", "error");
-          }
-        } catch {
-          Swal.fire("Error", "Server error saat hapus template", "error");
+        const res = await fetch(`/templates/${id}`, { method: "DELETE" });
+        const json = await res.json();
+        if (json.success) {
+          Swal.fire("Deleted", json.msg, "success");
+          location.reload();
+        } else {
+          Swal.fire("Error", json.error || "Gagal hapus", "error");
         }
       }
     });
-  });
-
-  // Submit form (Tambah / Edit)
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const id = document.getElementById("templateId").value;
-    const data = {
-      title: document.getElementById("title").value,
-      body: document.getElementById("body").value,
-      link: document.getElementById("link").value,
-      isActive: document.getElementById("isActive").checked
-    };
-
-    try {
-      const res = await fetch(id ? `/templates/${id}` : "/templates", {
-        method: id ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-      });
-      const json = await res.json();
-      if (json.success) {
-        templateModal.hide();
-        Swal.fire("Success", json.msg, "success").then(() => location.reload());
-      } else {
-        Swal.fire("Error", json.error || "Gagal menyimpan template", "error");
-      }
-    } catch {
-      Swal.fire("Error", "Server error saat simpan template", "error");
-    }
   });
 });
 </script>
