@@ -1,0 +1,66 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="fa fa-bullhorn text-primary me-2"></i>Campaigns</h4>
+  <a href="/campaigns/new" class="btn btn-primary">
+    <i class="fa fa-plus me-2"></i>Campaign Baru
+  </a>
+</div>
+
+<table class="table table-hover align-middle">
+  <thead class="table-light">
+    <tr>
+      <th>No</th>
+      <th>Nama</th>
+      <th>Template</th>
+      <th>Status</th>
+      <th>Target</th>
+      <th>Aksi</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if (campaigns.length === 0) { %>
+      <tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>
+    <% } else { %>
+      <% campaigns.forEach((c, i) => { 
+        const total = c.targets.length;
+        const valid = c.targets.filter(t=>t.status==="valid").length;
+        const invalid = c.targets.filter(t=>t.status==="invalid").length;
+        const success = c.targets.filter(t=>t.status==="success").length;
+        const error = c.targets.filter(t=>t.status==="error").length;
+      %>
+      <tr>
+        <td><%= i+1 %></td>
+        <td><%= c.name %></td>
+        <td><%= c.template ? c.template.name : "-" %></td>
+        <td>
+          <span class="badge bg-<%= 
+            c.status==="done" ? "success" : 
+            c.status==="running" ? "warning" : "secondary" 
+          %>">
+            <%= c.status %>
+          </span>
+        </td>
+        <td>
+          <span class="badge bg-info">Total: <%= total %></span>
+          <span class="badge bg-success">Valid: <%= valid %></span>
+          <span class="badge bg-danger">Invalid: <%= invalid %></span>
+          <span class="badge bg-primary">Success: <%= success %></span>
+          <span class="badge bg-dark">Error: <%= error %></span>
+        </td>
+        <td>
+          <% if (c.status==="idle" || c.status==="done") { %>
+            <form action="/campaigns/<%= c.id %>/run" method="post" class="d-inline">
+              <button class="btn btn-sm btn-success">
+                <i class="fa fa-play"></i> Jalankan
+              </button>
+            </form>
+          <% } else { %>
+            <button class="btn btn-sm btn-secondary" disabled>
+              <i class="fa fa-spinner fa-spin"></i> Sedang jalan
+            </button>
+          <% } %>
+        </td>
+      </tr>
+      <% }) %>
+    <% } %>
+  </tbody>
+</table>
