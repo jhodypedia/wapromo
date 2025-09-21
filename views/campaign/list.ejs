@@ -14,7 +14,7 @@
         <th>Template</th>
         <th>Status</th>
         <th>Target</th>
-        <th style="width:150px">Aksi</th>
+        <th style="width:140px">Aksi</th>
       </tr>
     </thead>
     <tbody id="campaignTableBody">
@@ -76,57 +76,53 @@
 <!-- Modal Create Campaign -->
 <div class="modal fade" id="campaignModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
+    <form class="modal-content" method="POST" action="/campaigns/new">
       <div class="modal-header border-0">
         <h5 class="modal-title"><i class="fa fa-plus text-primary me-2"></i>Campaign Baru</h5>
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <form id="createCampaignForm">
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Nama Campaign</label>
-            <input type="text" name="name" class="form-control" required>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Nama Campaign</label>
+          <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Template</label>
+          <select name="templateId" class="form-select" required>
+            <option value="">-- Pilih Template --</option>
+            <% templates.forEach(t => { %>
+              <option value="<%= t.id %>"><%= t.name %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Session</label>
+          <select name="sessionId" class="form-select" required>
+            <option value="">-- Pilih Session --</option>
+            <% sessions.forEach(s => { %>
+              <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Target Numbers</label>
+          <textarea name="numbers" rows="5" class="form-control" placeholder="628xxxx (satu per baris)"></textarea>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Speed Min (ms)</label>
+            <input type="number" name="speedMinMs" class="form-control" value="5000">
           </div>
-          <div class="mb-3">
-            <label class="form-label">Template</label>
-            <select name="templateId" class="form-select" required>
-              <option value="">-- Pilih Template --</option>
-              <% templates.forEach(t => { %>
-                <option value="<%= t.id %>"><%= t.name %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Session</label>
-            <select name="sessionId" class="form-select" required>
-              <option value="">-- Pilih Session --</option>
-              <% sessions.forEach(s => { %>
-                <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Target Numbers</label>
-            <textarea name="numbers" class="form-control" rows="4" placeholder="628xxxx (satu per baris)" required></textarea>
-          </div>
-          <div class="row">
-            <div class="col">
-              <label class="form-label">Speed Min (ms)</label>
-              <input type="number" name="speedMinMs" class="form-control" value="5000">
-            </div>
-            <div class="col">
-              <label class="form-label">Speed Max (ms)</label>
-              <input type="number" name="speedMaxMs" class="form-control" value="15000">
-            </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Speed Max (ms)</label>
+            <input type="number" name="speedMaxMs" class="form-control" value="15000">
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">
-            <i class="fa fa-save me-1"></i>Simpan
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-primary"><i class="fa fa-save me-1"></i> Simpan</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -156,7 +152,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   toastr.options = { closeButton:true, progressBar:true, positionClass:"toast-top-right", timeOut:"3000" };
 
-  // Load campaigns via AJAX
   async function loadCampaigns() {
     try {
       const res = await fetch("/campaigns/list");
@@ -167,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada campaign</td></tr>';
         return;
       }
-      data.forEach((c,i) => {
+      data.forEach((c, i) => {
         const total = c.targets.length;
         const valid = c.targets.filter(t=>t.status==="valid").length;
         const invalid = c.targets.filter(t=>t.status==="invalid").length;
@@ -190,9 +185,9 @@ document.addEventListener("DOMContentLoaded", () => {
               </div>
             </td>
             <td class="d-flex gap-1">
-              ${c.status==="idle" ? 
-                `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}"><i class="fa fa-play"></i></button>` : 
-                (c.status==="running" ? `<button class="btn btn-sm btn-secondary" disabled><i class="fa fa-spinner fa-spin"></i></button>` : "")
+              ${c.status==="idle"
+                ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}"><i class="fa fa-play"></i></button>`
+                : (c.status==="running" ? `<button class="btn btn-sm btn-secondary" disabled><i class="fa fa-spinner fa-spin"></i></button>` : "")
               }
               <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${c.id}"><i class="fa fa-eye"></i></button>
               <button class="btn btn-sm btn-danger delete-campaign" data-id="${c.id}"><i class="fa fa-trash"></i></button>
@@ -206,7 +201,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function bindActions() {
-    // Run
     document.querySelectorAll(".run-campaign").forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         const id = btn.dataset.id;
@@ -216,12 +210,11 @@ document.addEventListener("DOMContentLoaded", () => {
           toastr.success("Campaign dijalankan");
           loadCampaigns();
         } else {
-          toastr.error(json.error || "Gagal menjalankan");
+          toastr.error(json.error || "Gagal menjalankan campaign");
         }
       });
     });
 
-    // Delete
     document.querySelectorAll(".delete-campaign").forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         const id = btn.dataset.id;
@@ -246,7 +239,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    // Detail
     document.querySelectorAll(".detail-campaign").forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         const id = btn.dataset.id;
@@ -273,32 +265,6 @@ document.addEventListener("DOMContentLoaded", () => {
           body.innerHTML = `<div class="text-danger">Gagal memuat detail: ${json.error}</div>`;
         }
       });
-    });
-  }
-
-  // Create Campaign
-  const createForm = document.getElementById("createCampaignForm");
-  if (createForm) {
-    createForm.addEventListener("submit", async (e)=>{
-      e.preventDefault();
-      const formData = new FormData(createForm);
-      const data = Object.fromEntries(formData.entries());
-      try {
-        const res = await fetch("/campaigns/new", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify(data)
-        });
-        if (res.ok) {
-          toastr.success("Campaign berhasil dibuat");
-          bootstrap.Modal.getInstance(document.getElementById("campaignModal"))?.hide();
-          loadCampaigns();
-        } else {
-          toastr.error("Gagal membuat campaign");
-        }
-      } catch {
-        toastr.error("Server error saat membuat campaign");
-      }
     });
   }
 
