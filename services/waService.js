@@ -4,8 +4,10 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import { Session } from "../models/index.js";
+import fs from "fs";
+import path from "path";
 
-const sessions = new Map(); // sessionId → sock aktif
+const sessions = new Map(); // sessionId → socket aktif
 
 function delay(ms) {
   return new Promise((res) => setTimeout(res, ms));
@@ -13,10 +15,6 @@ function delay(ms) {
 
 /**
  * Mulai session WA baru
- * @param {string} sessionId - session unik
- * @param {object} io - socket.io instance
- * @param {"qr"|"pairing"} mode - mode koneksi
- * @param {string} [label] - label opsional untuk identifikasi
  */
 export async function startSession(sessionId, io, mode = "qr", label = null) {
   try {
@@ -36,7 +34,7 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
 
     sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
       if (mode === "qr" && qr) {
-        // hanya kirim QR jika mode qr
+        // kirim QR ke frontend
         await delay(6000);
         io.emit("wa_qr", { sessionId, qr });
       }
@@ -72,14 +70,14 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
 }
 
 /**
- * Ambil socket aktif dari memory
+ * Ambil socket aktif
  */
 export function getSession(sessionId) {
   return sessions.get(sessionId) || null;
 }
 
 /**
- * Generate Pairing Code asli dari Baileys (tanpa modifikasi)
+ * Generate Pairing Code asli dari Baileys
  */
 export async function getPairingCode(sessionId, phoneNumber) {
   const sock = getSession(sessionId);
@@ -87,19 +85,18 @@ export async function getPairingCode(sessionId, phoneNumber) {
 
   const jid = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
 
-  // kasih jeda biar socket siap
   await delay(6000);
 
   try {
     const code = await sock.requestPairingCode(jid);
-    return code; // 👉 langsung return apa adanya dari Baileys
+    return code; // return apa adanya
   } catch (err) {
     throw new Error("Gagal generate pairing code: " + err.message);
   }
 }
 
 /**
- * Cek nomor apakah valid di WhatsApp
+ * Cek nomor WhatsApp
  */
 export async function checkWaNumber(sessionId, number) {
   const sock = getSession(sessionId);
@@ -107,6 +104,34 @@ export async function checkWaNumber(sessionId, number) {
 
   const res = await sock.onWhatsApp(number.replace(/\D/g, "") + "@s.whatsapp.net");
   return !!res?.[0]?.exists;
+}
+
+/**
+ * Hapus session dari memory, DB, dan folder
+ */
+export async function deleteSession(sessionId) {
+  try {
+    const sock = sessions.get(sessionId);
+    if (sock) {
+      try {
+        await sock.logout();
+      } catch {}
+      sessions.delete(sessionId);
+    }
+
+    await Session.destroy({ where: { sessionId } });
+
+    const folder = path.join(process.cwd(), "sessions", sessionId);
+    if (fs.existsSync(folder)) {
+      fs.rmSync(folder, { recursive: true, force: true });
+    }
+
+    console.log(`🗑️ Session ${sessionId} deleted`);
+    return true;
+  } catch (err) {
+    console.error("❌ Error deleteSession:", err.message);
+    return false;
+  }
 }
 
 /**
