@@ -1,0 +1,84 @@
+<% layout('layouts/main') %>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="fa fa-whatsapp text-success me-2"></i>Koneksi WhatsApp</h4>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSession"><i class="fa fa-plus me-2"></i>Tambah Session</button>
+    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#pairingModal"><i class="fa fa-link me-2"></i>Pairing 6 Digit</button>
+  </div>
+</div>
+
+<div class="row g-3">
+  <% sessions.forEach(s => { %>
+    <div class="col-md-4" data-aos="fade-up">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold"><%= s.label || s.sessionId %></div>
+              <div class="small text-muted">ID: <code><%= s.sessionId %></code></div>
+            </div>
+            <span class="badge bg-<%= s.status==='connected'?'success':(s.status==='reconnecting'?'warning':'secondary') %>"><%= s.status %></span>
+          </div>
+          <hr>
+          <div id="qr-<%= s.sessionId %>" class="text-center"></div>
+          <div class="small text-muted mt-2 text-center">Scan QR via WhatsApp → Perangkat Tertaut</div>
+        </div>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Modal: Session baru -->
+<div class="modal fade" id="newSession" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="POST" action="/wa/start">
+      <div class="modal-header"><h5 class="modal-title">Buat Session Baru</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">Session ID</label><input name="sessionId" class="form-control" placeholder="session-1" required></div>
+        <div class="mb-3"><label class="form-label">Label</label><input name="label" class="form-control" placeholder="Akun Toko #1"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+        <button class="btn btn-primary">Mulai</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Pairing 6 Digit -->
+<div class="modal fade" id="pairingModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="pairingForm" class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Pairing 6 Digit</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">Session ID</label><input id="pairSession" class="form-control" placeholder="session-1" required></div>
+        <div class="mb-3"><label class="form-label">Nomor (62...)</label><input id="pairPhone" class="form-control" required></div>
+        <div id="pairResult" class="text-center mt-2 small text-muted"></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary">Generate Code</button></div>
+    </form>
+  </div>
+</div>
+
+<script>
+const socket = io();
+// tampilkan QR & status realtime
+socket.on('wa_qr', ({ sessionId, qr }) => {
+  const el = document.getElementById(`qr-${sessionId}`);
+  if (el) { el.innerHTML=''; new QRCode(el, { text: qr, width: 220, height: 220 }); toastr.info('QR baru untuk '+sessionId); }
+});
+socket.on('wa_status', ({ sessionId, status }) => { toastr.success(`Session ${sessionId}: ${status}`); });
+
+// pairing 6 digit
+document.getElementById("pairingForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const sessionId = document.getElementById("pairSession").value.trim();
+  const phone = document.getElementById("pairPhone").value.trim();
+  const res = await fetch("/wa/pairing", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ sessionId, phone }) }).then(r=>r.json());
+  if(res.success){
+    document.getElementById("pairResult").innerHTML = `<div class="h4 text-primary">${res.code}</div><div>Masukkan kode ini di WhatsApp → Perangkat Tertaut</div>`;
+  } else {
+    Swal.fire({icon:'error',title:'Gagal',text:res.error||'Error'});
+  }
+});
+</script>
