@@ -31,7 +31,7 @@
         <tr>
           <td><%= i+1 %></td>
           <td class="fw-semibold"><%= c.name %></td>
-          <td><%= c.template ? c.template.name : "-" %></td>
+          <td><%= c.template ? c.template.title : "-" %></td>
           <td>
             <span class="badge rounded-pill bg-<%= 
               c.status==="done" ? "success" : 
@@ -76,53 +76,56 @@
 <!-- Modal Create Campaign -->
 <div class="modal fade" id="campaignModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
-    <form class="modal-content" method="POST" action="/campaigns/new">
-      <div class="modal-header border-0">
-        <h5 class="modal-title"><i class="fa fa-plus text-primary me-2"></i>Campaign Baru</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Nama Campaign</label>
-          <input type="text" name="name" class="form-control" required>
+    <div class="modal-content">
+      <form id="campaignForm">
+        <div class="modal-header border-0">
+          <h5 class="modal-title"><i class="fa fa-plus text-primary me-2"></i>Campaign Baru</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Template</label>
-          <select name="templateId" class="form-select" required>
-            <option value="">-- Pilih Template --</option>
-            <% templates.forEach(t => { %>
-              <option value="<%= t.id %>"><%= t.name %></option>
-            <% }) %>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Session</label>
-          <select name="sessionId" class="form-select" required>
-            <option value="">-- Pilih Session --</option>
-            <% sessions.forEach(s => { %>
-              <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
-            <% }) %>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Target Numbers</label>
-          <textarea name="numbers" rows="5" class="form-control" placeholder="628xxxx (satu per baris)"></textarea>
-        </div>
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Speed Min (ms)</label>
-            <input type="number" name="speedMinMs" class="form-control" value="5000">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Nama Campaign</label>
+            <input type="text" name="name" id="campaignName" class="form-control" required />
           </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Speed Max (ms)</label>
-            <input type="number" name="speedMaxMs" class="form-control" value="15000">
+          <div class="mb-3">
+            <label class="form-label">Template</label>
+            <select name="templateId" id="templateId" class="form-select" required>
+              <option value="">-- Pilih Template --</option>
+              <% templates.forEach(t => { %>
+                <option value="<%= t.id %>"><%= t.title %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Session</label>
+            <select name="sessionId" id="sessionId" class="form-select" required>
+              <option value="">-- Pilih Session --</option>
+              <% sessions.forEach(s => { %>
+                <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Target</label>
+            <textarea name="numbers" id="numbers" rows="4" class="form-control" placeholder="628xxx (satu per baris)"></textarea>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Speed Min (ms)</label>
+              <input type="number" name="speedMinMs" id="speedMinMs" class="form-control" value="5000" />
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Speed Max (ms)</label>
+              <input type="number" name="speedMaxMs" id="speedMaxMs" class="form-control" value="15000" />
+            </div>
           </div>
         </div>
-      </div>
-      <div class="modal-footer border-0">
-        <button class="btn btn-primary"><i class="fa fa-save me-1"></i> Simpan</button>
-      </div>
-    </form>
+        <div class="modal-footer border-0">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -140,13 +143,6 @@
     </div>
   </div>
 </div>
-
-<style>
-  .table td, .table th { vertical-align: middle; }
-  .badge { font-size: .75rem; font-weight: 500; }
-  .modal-body ul.list-group { max-height: 350px; overflow-y: auto; }
-  .modal-body ul.list-group li { font-size: .85rem; }
-</style>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
@@ -173,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <tr>
             <td>${i+1}</td>
             <td class="fw-semibold">${c.name}</td>
-            <td>${c.template ? c.template.name : "-"}</td>
+            <td>${c.template ? c.template.title : "-"}</td>
             <td><span class="badge rounded-pill bg-${c.status==="done"?"success":(c.status==="running"?"warning":"secondary")} px-3 py-2">${c.status}</span></td>
             <td>
               <div class="d-flex flex-wrap gap-1 small">
@@ -252,7 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
           body.innerHTML = `
             <h6 class="fw-bold">${cp.name}</h6>
             <p class="mb-1"><b>Status:</b> ${cp.status}</p>
-            <p class="mb-2"><b>Template:</b> ${cp.template ? cp.template.name : "-"}</p>
+            <p class="mb-2"><b>Template:</b> ${cp.template ? cp.template.title : "-"}</p>
             <hr>
             <h6 class="fw-bold">Target</h6>
             <ul class="list-group small">
@@ -267,6 +263,34 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
+
+  // Form create campaign AJAX
+  const form = document.getElementById("campaignForm");
+  form.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const data = {
+      name: document.getElementById("campaignName").value,
+      templateId: document.getElementById("templateId").value,
+      sessionId: document.getElementById("sessionId").value,
+      numbers: document.getElementById("numbers").value,
+      speedMinMs: document.getElementById("speedMinMs").value,
+      speedMaxMs: document.getElementById("speedMaxMs").value,
+    };
+    const res = await fetch("/campaigns/new", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if(json.success){
+      toastr.success("Campaign berhasil dibuat");
+      bootstrap.Modal.getInstance(document.getElementById("campaignModal"))?.hide();
+      form.reset();
+      loadCampaigns();
+    }else{
+      toastr.error(json.error || "Gagal membuat campaign");
+    }
+  });
 
   loadCampaigns();
 });
