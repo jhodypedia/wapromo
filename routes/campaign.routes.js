@@ -20,7 +20,7 @@ router.get("/", authRequired, async (req, res) => {
         ],
         order: [["id", "DESC"]]
       }),
-      Template.findAll({ where: { isActive: true } }),
+      Template.findAll(),   // ✅ ambil semua template (tanpa filter)
       Session.findAll()
     ]);
 
