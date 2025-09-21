@@ -43,7 +43,6 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
   color: #6c757d;
 }
 
-
 /* Wrapper untuk textarea + tombol copy/download */
 .copy-wrapper {
   display: flex;
@@ -53,6 +52,9 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
 .copy-wrapper textarea {
   flex: 1;
   resize: none;
+  max-height: 300px;   /* ✅ batasi tinggi */
+  overflow-y: auto;    /* ✅ munculkan scroll */
+  white-space: pre;    /* ✅ biar format baris tetap */
 }
 
 .copy-actions {
