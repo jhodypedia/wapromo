@@ -1,135 +1,216 @@
-import express from "express";
-import { authRequired } from "../middlewares/auth.js";
-import {
-  startSession,
-  getPairingCode,
-  checkWaNumber,
-  deleteSession
-} from "../services/waService.js";
-import { Session } from "../models/index.js";
+document.addEventListener("DOMContentLoaded", () => {
+  const socket = window.io ? io() : null;
 
-const router = express.Router();
+  // Toastr setup (hanya notifikasi, bukan konfirmasi)
+  toastr.options = {
+    closeButton: true,
+    progressBar: true,
+    newestOnTop: true,
+    positionClass: "toast-top-right",
+    timeOut: "3000"
+  };
 
-/**
- * Halaman connect WhatsApp
- */
-router.get("/connect", authRequired, async (req, res) => {
-  const sessions = await Session.findAll({ order: [["id", "DESC"]] });
-  res.render("wa/connect", { sessions });
-});
+  /**
+   * Render session cards
+   */
+  function renderSessions(sessions) {
+    const container = document.getElementById("sessions");
+    container.innerHTML = sessions
+      .map(
+        (s) => `
+        <div class="col-sm-6 col-md-4 col-lg-3">
+          <div class="card h-100 d-flex flex-column">
+            <div class="card-body flex-grow-1">
+              <div class="fw-semibold">${s.label || s.sessionId}</div>
+              <div class="small text-muted">ID: ${s.sessionId}</div>
+              <span class="badge mt-2 bg-${
+                s.status === "connected"
+                  ? "success"
+                  : s.status === "reconnecting"
+                  ? "warning"
+                  : "secondary"
+              }">${s.status}</span>
+            </div>
+            <div class="card-footer d-flex justify-content-between">
+              <button class="btn btn-sm btn-outline-primary open-session" data-session="${s.sessionId}">
+                <i class="fa fa-qrcode me-1"></i>Open
+              </button>
+              <button class="btn btn-sm btn-outline-danger delete-session" data-session="${s.sessionId}">
+                <i class="fa fa-trash me-1"></i>Delete
+              </button>
+            </div>
+          </div>
+        </div>`
+      )
+      .join("");
 
-/**
- * API: daftar session
- */
-router.get("/connect/list", authRequired, async (req, res) => {
-  try {
-    const sessions = await Session.findAll({ order: [["id", "DESC"]] });
-    res.json(sessions);
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-/**
- * API: start session baru
- */
-router.post("/start", authRequired, async (req, res) => {
-  try {
-    const { sessionId, label, mode } = req.body;
-    if (!sessionId) {
-      return res.status(400).json({ success: false, error: "SessionId wajib" });
-    }
-
-    const io = req.app.get("io");
-    const selectedMode = mode === "pairing" ? "pairing" : "qr";
-
-    await Session.upsert({ sessionId, label, mode: selectedMode, status: "connecting" });
-
-    startSession(sessionId, io, selectedMode, label);
-
-    res.json({ success: true, msg: `Session ${sessionId} dimulai (${selectedMode})` });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-/**
- * API: generate pairing code
- */
-router.post("/pairing", authRequired, async (req, res) => {
-  try {
-    const { sessionId, phone } = req.body;
-    if (!sessionId || !phone) {
-      return res.status(400).json({ success: false, error: "SessionId dan nomor WA wajib" });
-    }
-
-    const io = req.app.get("io");
-
-    let session = await Session.findOne({ where: { sessionId } });
-    if (!session) {
-      session = await Session.create({
-        sessionId,
-        label: sessionId,
-        mode: "pairing",
-        status: "connecting"
+    // bind tombol open
+    container.querySelectorAll(".open-session").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const sessionId = btn.dataset.session;
+        openQrModal(sessionId, "Menunggu QR / Pairing...");
       });
-      startSession(sessionId, io, "pairing", sessionId);
-    }
+    });
 
-    async function tryGenerate(maxRetry = 3) {
-      let lastErr;
-      for (let i = 1; i <= maxRetry; i++) {
-        try {
-          const code = await getPairingCode(sessionId, phone);
-          return code;
-        } catch (err) {
-          lastErr = err;
-          await new Promise((r) => setTimeout(r, 2000));
+    // bind tombol delete
+    container.querySelectorAll(".delete-session").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const sessionId = btn.dataset.session;
+
+        const confirm = await Swal.fire({
+          title: "Hapus Session?",
+          text: `Apakah Anda yakin ingin menghapus session ${sessionId}?`,
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Ya, hapus",
+          cancelButtonText: "Batal",
+          confirmButtonColor: "#d33",
+          cancelButtonColor: "#6c757d"
+        });
+
+        if (confirm.isConfirmed) {
+          try {
+            const res = await fetch(`/wa/delete/${sessionId}`, { method: "DELETE" });
+            const json = await res.json();
+            if (json.success) {
+              toastr.success(`Session ${sessionId} berhasil dihapus`, "Deleted");
+              loadSessions();
+            } else {
+              toastr.error(json.error || "Gagal menghapus session", "Error");
+            }
+          } catch (err) {
+            toastr.error("Terjadi kesalahan server", "Error");
+            console.error("❌ Delete session error:", err);
+          }
         }
+      });
+    });
+  }
+
+  /**
+   * Load daftar sessions dari server
+   */
+  async function loadSessions() {
+    try {
+      const res = await fetch("/wa/connect/list");
+      const sessions = await res.json();
+      renderSessions(sessions);
+    } catch (err) {
+      toastr.error("Gagal memuat session", "Error");
+      console.error("❌ loadSessions error:", err);
+    }
+  }
+
+  /**
+   * Modal QR / Pairing
+   */
+  function openQrModal(sessionId, message = "Loading...") {
+    document.getElementById("qrModalTitle").innerText = `Session: ${sessionId}`;
+    document.getElementById("qrContainer").innerHTML =
+      `<div class="text-muted">${message}</div>`;
+    document.getElementById("qrNote").innerText = "";
+    document.getElementById("qrModal").setAttribute("data-session", sessionId);
+    new bootstrap.Modal(document.getElementById("qrModal")).show();
+  }
+
+  /**
+   * Form: Buat Session baru (QR)
+   */
+  const newSessionForm = document.getElementById("newSessionForm");
+  if (newSessionForm) {
+    newSessionForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = {
+        sessionId: document.getElementById("sessionId").value.trim(),
+        label: document.getElementById("label").value.trim(),
+      };
+
+      bootstrap.Modal.getInstance(document.getElementById("sessionModal"))?.hide();
+      openQrModal(data.sessionId, "Menunggu QR ...");
+
+      const res = await fetch("/wa/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toastr.success("Session berhasil dibuat", "Berhasil");
+      } else {
+        toastr.error(json.error || "Gagal membuat session", "Error");
       }
-      throw lastErr;
-    }
-
-    const code = await tryGenerate(3);
-    res.json({ success: true, code });
-  } catch (e) {
-    res.status(400).json({ success: false, error: e.message });
+    });
   }
-});
 
-/**
- * API: cek nomor aktif WA
- */
-router.post("/check", authRequired, async (req, res) => {
-  try {
-    const { sessionId, number } = req.body;
-    if (!sessionId || !number) {
-      return res.status(400).json({ success: false, error: "SessionId & nomor wajib" });
-    }
+  /**
+   * Form: Pairing code
+   */
+  const pairingForm = document.getElementById("pairingForm");
+  if (pairingForm) {
+    pairingForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const sessionId = document.getElementById("pairSession").value.trim();
+      const phone = document.getElementById("pairPhone").value.trim();
 
-    const exists = await checkWaNumber(sessionId, number);
-    res.json({ success: true, number, exists });
-  } catch (e) {
-    res.status(400).json({ success: false, error: e.message });
+      if (!sessionId || !phone) {
+        toastr.warning("Isi SessionId & Nomor WA dulu", "Perhatian");
+        return;
+      }
+
+      bootstrap.Modal.getInstance(document.getElementById("sessionModal"))?.hide();
+      openQrModal(sessionId, "Menunggu kode pairing...");
+
+      const res = await fetch("/wa/pairing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, phone }),
+      }).then((r) => r.json());
+
+      if (res.success) {
+        document.getElementById("qrContainer").innerHTML = `
+          <div class="p-3 bg-light rounded border fw-bold text-primary fs-4 animate__animated animate__fadeIn">
+            ${res.code}
+          </div>`;
+        document.getElementById("qrNote").innerText =
+          "Masukkan kode ini di WhatsApp → Perangkat Tertaut";
+        toastr.success("Pairing code berhasil dibuat", "Berhasil");
+      } else {
+        document.getElementById("qrContainer").innerHTML =
+          `<div class="text-danger">Gagal: ${res.error || "Tidak bisa generate kode"}</div>`;
+        toastr.error(res.error || "Gagal generate pairing code", "Error");
+      }
+    });
   }
-});
 
-/**
- * API: hapus session
- */
-router.delete("/:sessionId", authRequired, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const ok = await deleteSession(sessionId);
+  /**
+   * Socket listener
+   */
+  if (socket) {
+    socket.on("wa_qr", ({ sessionId, qr }) => {
+      const modal = document.getElementById("qrModal");
+      const activeSession = modal.getAttribute("data-session");
+      if (activeSession === sessionId) {
+        const el = document.getElementById("qrContainer");
+        el.innerHTML = "";
+        new QRCode(el, { text: qr, width: 220, height: 220 });
+        document.getElementById("qrNote").innerText =
+          "Scan QR ini di WhatsApp → Perangkat Tertaut";
+        toastr.info("QR Code baru diterima", "Info");
+      }
+    });
 
-    if (!ok) {
-      return res.status(500).json({ success: false, error: "Gagal hapus session" });
-    }
-
-    res.json({ success: true, msg: `Session ${sessionId} berhasil dihapus` });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
+    socket.on("wa_status", ({ sessionId, status }) => {
+      loadSessions();
+      if (status === "connected") {
+        toastr.success(`Session ${sessionId} tersambung`, "Connected");
+      } else if (status === "reconnecting") {
+        toastr.warning(`Session ${sessionId} mencoba reconnect`, "Reconnecting");
+      } else if (status === "disconnected") {
+        toastr.error(`Session ${sessionId} terputus`, "Disconnected");
+      }
+    });
   }
-});
 
-export default router;
+  // Init pertama kali
+  if (document.getElementById("sessions")) loadSessions();
+});
