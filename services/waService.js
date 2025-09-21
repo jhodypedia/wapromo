@@ -5,7 +5,11 @@ import makeWASocket, {
 import { Boom } from "@hapi/boom";
 import { Session } from "../models/index.js";
 
-const sessions = {}; // Map sessionId → socket aktif
+const sessions = {}; // map sessionId → socket aktif
+
+function delay(ms) {
+  return new Promise((res) => setTimeout(res, ms));
+}
 
 /**
  * Mulai session WA
@@ -16,7 +20,7 @@ export async function startSession(sessionId, io) {
 
     const sock = makeWASocket({
       auth: state,
-      printQRInTerminal: false // QR kita kirim via socket ke frontend
+      printQRInTerminal: false // QR dikirim via socket ke frontend
     });
 
     sessions[sessionId] = sock;
@@ -27,6 +31,8 @@ export async function startSession(sessionId, io) {
 
     sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
       if (qr) {
+        // kasih delay biar stabil
+        await delay(6000);
         io.emit("wa_qr", { sessionId, qr });
       }
 
@@ -45,7 +51,7 @@ export async function startSession(sessionId, io) {
         if (shouldReconnect) {
           await Session.upsert({ sessionId, status: "reconnecting" });
           io.emit("wa_status", { sessionId, status: "reconnecting" });
-          setTimeout(() => startSession(sessionId, io), 2000);
+          setTimeout(() => startSession(sessionId, io), 3000);
         } else {
           delete sessions[sessionId];
         }
@@ -57,7 +63,7 @@ export async function startSession(sessionId, io) {
 }
 
 /**
- * Ambil socket aktif by sessionId
+ * Ambil socket aktif
  */
 export function getSession(sessionId) {
   return sessions[sessionId] || null;
@@ -70,8 +76,10 @@ export async function getPairingCode(sessionId, phoneNumber) {
   const sock = getSession(sessionId);
   if (!sock) throw new Error("Session belum aktif");
 
-  // nomor WA → jid
   const jid = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
+
+  // tunggu 6 detik biar socket siap
+  await delay(6000);
 
   try {
     const code = await sock.requestPairingCode(jid);
