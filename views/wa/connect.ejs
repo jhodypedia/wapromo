@@ -1,13 +1,11 @@
-<div class="d-flex justify-content-between align-items-center mb-3">
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h4 class="mb-0">
     <i class="fa fa-whatsapp text-success me-2"></i>Koneksi WhatsApp
   </h4>
-  <div class="d-flex gap-2">
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSession">
-      <i class="fa fa-plus me-2"></i>Tambah Session
-    </button>
-    <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#pairingModal">
-      <i class="fa fa-link me-2"></i>Pairing Code
+  <div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#sessionModal">
+      <i class="fa fa-plus me-2"></i>Tambah / Pairing Session
     </button>
   </div>
 </div>
@@ -16,74 +14,78 @@
   <!-- Sessions dimuat via AJAX -->
 </div>
 
-<!-- Modal: Buat Session -->
-<div class="modal fade" id="newSession" tabindex="-1">
-  <div class="modal-dialog">
-    <form id="newSessionForm" class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title"><i class="fa fa-plus me-2"></i>Buat Session Baru</h5>
-        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+<!-- Modal Input: Tambah Session / Pairing -->
+<div class="modal fade" id="sessionModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title">
+          <i class="fa fa-link text-primary me-2"></i>Kelola Session
+        </h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Session ID</label>
-          <input id="sessionId" class="form-control" placeholder="session-1" required>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Label</label>
-          <input id="label" class="form-control" placeholder="Akun Toko #1">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Mode</label>
-          <select id="mode" class="form-select">
-            <option value="qr" selected>QR Code</option>
-            <option value="pairing">Pairing Code</option>
-          </select>
+        <!-- Tab Nav -->
+        <ul class="nav nav-pills mb-3" id="sessionTab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-new" data-bs-toggle="pill" data-bs-target="#newSessionPane" type="button">Tambah Session</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-pair" data-bs-toggle="pill" data-bs-target="#pairingPane" type="button">Pairing Code</button>
+          </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+          <!-- Tab: Session Baru -->
+          <div class="tab-pane fade show active" id="newSessionPane">
+            <form id="newSessionForm">
+              <div class="mb-3">
+                <label class="form-label">Session ID</label>
+                <input id="sessionId" class="form-control" placeholder="session-1" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Label</label>
+                <input id="label" class="form-control" placeholder="Akun Toko #1">
+              </div>
+              <button class="btn btn-primary w-100">
+                <i class="fa fa-play me-2"></i>Mulai
+              </button>
+            </form>
+          </div>
+
+          <!-- Tab: Pairing -->
+          <div class="tab-pane fade" id="pairingPane">
+            <form id="pairingForm">
+              <div class="mb-3">
+                <label class="form-label">Session ID</label>
+                <input id="pairSession" class="form-control" placeholder="session-1" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Nomor WhatsApp (62...)</label>
+                <input id="pairPhone" class="form-control" placeholder="628xxxx" required>
+              </div>
+              <button class="btn btn-outline-primary w-100">
+                <i class="fa fa-link me-2"></i>Generate Code
+              </button>
+            </form>
+          </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-light" data-bs-dismiss="modal">Batal</button>
-        <button class="btn btn-primary">Mulai</button>
-      </div>
-    </form>
+    </div>
   </div>
 </div>
 
-<!-- Modal: Pairing Form -->
-<div class="modal fade" id="pairingModal" tabindex="-1">
-  <div class="modal-dialog">
-    <form id="pairingForm" class="modal-content">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title"><i class="fa fa-link me-2"></i>Pairing Code</h5>
-        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Session ID</label>
-          <input id="pairSession" class="form-control" placeholder="session-1" required>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Nomor WhatsApp (62...)</label>
-          <input id="pairPhone" class="form-control" required>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-success">Generate Code</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Modal: QR / Pairing Display -->
+<!-- Modal Hasil: QR / Pairing Display -->
 <div class="modal fade" id="qrModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content shadow">
-      <div class="modal-header bg-dark text-white">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content glass">
+      <div class="modal-header border-0">
         <h5 id="qrModalTitle" class="modal-title">Session</h5>
-        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body text-center">
-        <div id="qrContainer" class="my-3 p-3 border rounded bg-light">
+        <div id="qrContainer" class="my-3">
           <div class="text-muted">Menunggu QR / Pairing code...</div>
         </div>
         <div id="qrNote" class="small text-muted"></div>
