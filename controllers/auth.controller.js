@@ -69,7 +69,10 @@ export const postRegister = async (req, res) => {
 // 🔹 Logout
 export const logout = (req, res) => {
   req.session.destroy(() => {
-    return handleResponse(req, res, 200, "Logout berhasil");
+    if (req.xhr || req.headers.accept.includes("json")) {
+      return res.json({ success: true, msg: "Logout berhasil" });
+    }
+    return res.redirect("/auth/login");
   });
 };
 
