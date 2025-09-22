@@ -20,7 +20,7 @@
       </thead>
       <tbody>
         <% templates.forEach((t, i) => { %>
-          <tr data-id="<%= t.id %>">
+          <tr>
             <td><%= i+1 %></td>
             <td><%= t.title %></td>
             <td style="white-space:pre-wrap"><%= t.body %></td>
@@ -93,7 +93,6 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // Init DataTables
   const table = $('#templateTable').DataTable({
     responsive: true,
     pageLength: 5,
@@ -140,14 +139,21 @@ document.addEventListener("DOMContentLoaded", () => {
         Swal.fire("Berhasil", `Template ${id ? "diperbarui" : "ditambahkan"}`, "success");
 
         if (id) {
-          // update row
-          const row = $(`#templateTable tr[data-id="${id}"]`);
-          row.find("td:eq(1)").text(json.template.title);
-          row.find("td:eq(2)").text(json.template.body);
-          row.find("td:eq(3)").html(json.template.link ? `<a href="${json.template.link}" target="_blank"><i class="fa fa-link me-1"></i>Link</a>` : "-");
-          row.find("td:eq(4)").html(`<span class="badge ${json.template.isActive ? 'bg-success':'bg-secondary'}">${json.template.isActive ? 'Aktif':'Nonaktif'}</span>`);
+          // ✅ Update row di DataTables
+          const row = table.row($(`.edit-template[data-id="${id}"]`).parents('tr'));
+          row.data([
+            row.index() + 1,
+            json.template.title,
+            json.template.body,
+            json.template.link ? `<a href="${json.template.link}" target="_blank"><i class="fa fa-link me-1"></i>Link</a>` : "-",
+            `<span class="badge ${json.template.isActive ? 'bg-success':'bg-secondary'}">${json.template.isActive ? 'Aktif':'Nonaktif'}</span>`,
+            `<div class="btn-group btn-group-sm" role="group">
+              <button class="btn btn-outline-warning edit-template" data-id="${json.template.id}" title="Edit"><i class="fa fa-pen"></i></button>
+              <button class="btn btn-outline-danger delete-template" data-id="${json.template.id}" title="Hapus"><i class="fa fa-trash"></i></button>
+            </div>`
+          ]).draw(false);
         } else {
-          // add new row
+          // ✅ Tambah row baru ke DataTables
           const newRow = table.row.add([
             table.rows().count() + 1,
             json.template.title,
@@ -155,10 +161,10 @@ document.addEventListener("DOMContentLoaded", () => {
             json.template.link ? `<a href="${json.template.link}" target="_blank"><i class="fa fa-link me-1"></i>Link</a>` : "-",
             `<span class="badge ${json.template.isActive ? 'bg-success':'bg-secondary'}">${json.template.isActive ? 'Aktif':'Nonaktif'}</span>`,
             `<div class="btn-group btn-group-sm" role="group">
-              <button class="btn btn-outline-warning edit-template" title="Edit"><i class="fa fa-pen"></i></button>
-              <button class="btn btn-outline-danger delete-template" title="Hapus"><i class="fa fa-trash"></i></button>
+              <button class="btn btn-outline-warning edit-template" data-id="${json.template.id}" title="Edit"><i class="fa fa-pen"></i></button>
+              <button class="btn btn-outline-danger delete-template" data-id="${json.template.id}" title="Hapus"><i class="fa fa-trash"></i></button>
             </div>`
-          ]).draw().node();
+          ]).draw(false).node();
           $(newRow).attr("data-id", json.template.id);
         }
 
@@ -171,10 +177,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Edit
+  // Edit Template
   $('#templateTable').on('click', '.edit-template', function () {
+    const id = $(this).data('id');
     const tr = $(this).closest('tr');
-    const id = tr.data('id');
+
     document.getElementById("templateId").value = id;
     document.getElementById("title").value = tr.children().eq(1).text();
     document.getElementById("body").value = tr.children().eq(2).text();
@@ -184,10 +191,10 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.show();
   });
 
-  // Delete
+  // Hapus Template
   $('#templateTable').on('click', '.delete-template', async function () {
+    const id = $(this).data('id');
     const tr = $(this).closest('tr');
-    const id = tr.data('id');
 
     const confirm = await Swal.fire({
       title: "Hapus Template?",
@@ -206,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (json.success) {
         Swal.fire("Berhasil", "Template dihapus", "success");
-        table.row(tr).remove().draw();
+        table.row(tr).remove().draw(false);
       } else {
         Swal.fire("Error", json.error || "Gagal hapus", "error");
       }
