@@ -85,6 +85,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const socket = io();
   const container = document.getElementById("sessions");
+  let pairingTimer = null;
 
   // 🔹 Render Card Session
   function renderSessionCard(s) {
@@ -184,20 +185,42 @@ document.addEventListener("DOMContentLoaded", () => {
     loadSessions();
   });
 
-  // 🔹 Form Pairing
+  // 🔹 Form Pairing (dengan TTL 30s)
   document.getElementById("pairingForm")?.addEventListener("submit", async e => {
     e.preventDefault();
     const sessionId = document.getElementById("pairSession").value.trim();
     const phone = document.getElementById("pairPhone").value.trim();
     bootstrap.Modal.getInstance(document.getElementById("sessionModal"))?.hide();
     openQrModal(sessionId, "Menunggu pairing code...");
+
     const res = await fetch("/wa/pairing", {
       method:"POST", headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ sessionId, phone })
     }).then(r=>r.json());
+
     if (res.success) {
-      document.getElementById("qrContainer").innerHTML = `<div class="p-3 bg-light rounded fw-bold text-primary fs-4">${res.code}</div>`;
+      document.getElementById("qrContainer").innerHTML = `
+        <div class="p-3 bg-light rounded fw-bold text-primary fs-4">${res.code}</div>
+      `;
       document.getElementById("qrNote").innerText = "Masukkan kode di WhatsApp → Perangkat Tertaut";
+
+      // ✅ Tambahkan countdown TTL pairing
+      if (pairingTimer) clearInterval(pairingTimer);
+      let expire = new Date(res.expiredAt).getTime();
+      pairingTimer = setInterval(() => {
+        let left = Math.floor((expire - Date.now())/1000);
+        if (left > 0) {
+          document.getElementById("qrNote").innerText =
+            `Kode berlaku ${left}s → Masukkan segera di WhatsApp`;
+        } else {
+          clearInterval(pairingTimer);
+          document.getElementById("qrContainer").innerHTML =
+            `<div class="text-danger fw-bold">⏰ Pairing code expired</div>`;
+          document.getElementById("qrNote").innerText = "";
+          Swal.fire("Expired", "Pairing code sudah kadaluarsa, generate ulang.", "warning");
+        }
+      }, 1000);
+
       Swal.fire("Berhasil", "Pairing code berhasil dibuat", "success");
     } else {
       Swal.fire("Error", res.error || "Gagal pairing", "error");
@@ -222,18 +245,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (status === "disconnected") Swal.fire("Disconnected", `Session ${sessionId} terputus`, "error");
   });
 
-  // 🔹 Socket listener pairing code
-  socket.on("wa_pairing", ({ sessionId, code }) => {
-    const modal = document.getElementById("qrModal");
-    if (modal.getAttribute("data-session") === sessionId) {
-      document.getElementById("qrContainer").innerHTML = `
-        <div class="p-3 bg-light rounded fw-bold text-primary fs-4">${code}</div>
-      `;
-      document.getElementById("qrNote").innerText = "Masukkan kode di WhatsApp → Perangkat Tertaut";
-    }
-  });
-
-  // 🔹 Load awal
   loadSessions();
 });
 </script>
