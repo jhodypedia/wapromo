@@ -107,7 +107,7 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  let table = $('#campaignTable').DataTable({
+  const table = $('#campaignTable').DataTable({
     responsive: true,
     pageLength: 5,
     lengthMenu: [5, 10, 25, 50],
@@ -121,50 +121,86 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   async function loadCampaigns(filterSessionId = "") {
-    try {
-      const res = await fetch("/campaigns/list");
-      const data = await res.json();
-      table.clear();
+    const res = await fetch("/campaigns/list");
+    const data = await res.json();
+    table.clear();
 
-      const filtered = filterSessionId
-        ? data.filter(c => String(c.sessionId) === String(filterSessionId))
-        : data;
+    const filtered = filterSessionId
+      ? data.filter(c => String(c.sessionId) === String(filterSessionId))
+      : data;
 
-      filtered.forEach((c, i) => {
-        const statusBadge = `<span class="badge rounded-pill bg-${
-          c.status==="done" ? "success" :
-          c.status==="running" ? "warning" :
-          c.status==="stopped" ? "danger" : "secondary"
-        } px-3 py-2">${c.status}</span>`;
-
-        const actions = `
-          ${c.status==="idle"
-            ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}" title="Jalankan"><i class="fa fa-play"></i></button>`
-            : (c.status==="running"
-              ? `<button class="btn btn-sm btn-warning stop-campaign" data-id="${c.id}" title="Stop"><i class="fa fa-stop"></i></button>`
-              : "")
-          }
-          <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${c.id}" title="Detail"><i class="fa fa-eye"></i></button>
-          <button class="btn btn-sm btn-danger delete-campaign" data-id="${c.id}" title="Hapus"><i class="fa fa-trash"></i></button>
-        `;
-
-        table.row.add([
-          i+1,
-          `<span class="fw-semibold">${c.name}</span>`,
-          c.template ? c.template.title : "-",
-          c.session ? (c.session.label || c.session.sessionId) : "-",
-          statusBadge,
-          `<div class="d-flex gap-1">${actions}</div>`
-        ]);
-      });
-
-      table.draw();
-      bindActions();
-    } catch (err) {
-      Swal.fire("Error", "Gagal memuat campaign", "error");
-    }
+    filtered.forEach((c, i) => addRow(c, i));
+    table.draw();
+    bindActions();
   }
 
+  function addRow(c, i) {
+    const statusBadge = `<span class="badge rounded-pill bg-${
+      c.status==="done" ? "success" :
+      c.status==="running" ? "warning" :
+      c.status==="stopped" ? "danger" : "secondary"
+    } px-3 py-2">${c.status}</span>`;
+
+    const actions = `
+      ${c.status==="idle"
+        ? `<button class="btn btn-sm btn-success run-campaign" data-id="${c.id}" title="Jalankan"><i class="fa fa-play"></i></button>`
+        : (c.status==="running"
+          ? `<button class="btn btn-sm btn-warning stop-campaign" data-id="${c.id}" title="Stop"><i class="fa fa-stop"></i></button>`
+          : "")
+      }
+      <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${c.id}" title="Detail"><i class="fa fa-eye"></i></button>
+      <button class="btn btn-sm btn-danger delete-campaign" data-id="${c.id}" title="Hapus"><i class="fa fa-trash"></i></button>
+    `;
+
+    table.row.add([
+      i+1,
+      `<span class="fw-semibold">${c.name}</span>`,
+      c.template ? c.template.title : "-",
+      c.session ? (c.session.label || c.session.sessionId) : "-",
+      statusBadge,
+      `<div class="d-flex gap-1">${actions}</div>`
+    ]).node().setAttribute("data-id", c.id);
+  }
+
+  // 🔹 Update baris status di tabel
+  function updateRowStatus(campaignId, newStatus) {
+    $('#campaignTable tbody tr').each(function() {
+      if ($(this).attr("data-id") == campaignId) {
+        const badge = `<span class="badge rounded-pill bg-${
+          newStatus==="done" ? "success" :
+          newStatus==="running" ? "warning" :
+          newStatus==="stopped" ? "danger" : "secondary"
+        } px-3 py-2">${newStatus}</span>`;
+        $(this).find("td:eq(4)").html(badge);
+
+        // Update tombol aksi
+        let actions = "";
+        if (newStatus === "idle") {
+          actions = `<button class="btn btn-sm btn-success run-campaign" data-id="${campaignId}" title="Jalankan"><i class="fa fa-play"></i></button>`;
+        } else if (newStatus === "running") {
+          actions = `<button class="btn btn-sm btn-warning stop-campaign" data-id="${campaignId}" title="Stop"><i class="fa fa-stop"></i></button>`;
+        }
+        actions += `
+          <button class="btn btn-sm btn-info text-white detail-campaign" data-id="${campaignId}" title="Detail"><i class="fa fa-eye"></i></button>
+          <button class="btn btn-sm btn-danger delete-campaign" data-id="${campaignId}" title="Hapus"><i class="fa fa-trash"></i></button>
+        `;
+        $(this).find("td:eq(5)").html(`<div class="d-flex gap-1">${actions}</div>`);
+      }
+    });
+  }
+
+  // 🔹 Socket listener realtime
+  const socket = io();
+  socket.on("campaign_progress", ({ campaignId }) => {
+    updateRowStatus(campaignId, "running");
+    toastr.info(`Campaign #${campaignId} sedang berjalan`, "Progress");
+  });
+  socket.on("campaign_done", ({ campaignId }) => {
+    updateRowStatus(campaignId, "done");
+    toastr.success(`Campaign #${campaignId} selesai`, "Done");
+  });
+
+  // 🔹 Bind Aksi CRUD
   function bindActions() {
     // Jalankan
     $('#campaignTable').off('click', '.run-campaign').on('click', '.run-campaign', async function () {
@@ -172,8 +208,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch(`/campaigns/${id}/run`, {method:"POST"});
       const json = await res.json();
       if (json.success) {
-        Swal.fire("Berhasil", "Campaign dijalankan", "success");
-        loadCampaigns(document.getElementById("sessionFilter").value);
+        toastr.success("Campaign dijalankan", "Success");
+        updateRowStatus(id, "running");
       } else {
         Swal.fire("Error", json.error || "Gagal menjalankan campaign", "error");
       }
@@ -195,8 +231,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch(`/campaigns/${id}/stop`, {method:"POST"});
       const json = await res.json();
       if (json.success) {
-        Swal.fire("Berhasil", "Campaign dihentikan", "success");
-        loadCampaigns(document.getElementById("sessionFilter").value);
+        toastr.warning("Campaign dihentikan", "Stopped");
+        updateRowStatus(id, "stopped");
       } else {
         Swal.fire("Error", json.error || "Gagal stop campaign", "error");
       }
@@ -218,8 +254,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch(`/campaigns/${id}`, {method:"DELETE"});
       const json = await res.json();
       if (json.success) {
-        Swal.fire("Berhasil", "Campaign dihapus", "success");
-        loadCampaigns(document.getElementById("sessionFilter").value);
+        toastr.success("Campaign dihapus", "Deleted");
+        table.row($(this).parents("tr")).remove().draw();
       } else {
         Swal.fire("Error", json.error || "Gagal menghapus", "error");
       }
@@ -280,7 +316,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     const json = await res.json();
     if(json.success){
-      Swal.fire("Berhasil", "Campaign berhasil dibuat", "success");
+      toastr.success("Campaign berhasil dibuat", "Success");
       bootstrap.Modal.getInstance(document.getElementById("campaignModal"))?.hide();
       form.reset();
       loadCampaigns(document.getElementById("sessionFilter").value);
