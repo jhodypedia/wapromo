@@ -12,6 +12,10 @@ const Session = sequelize.define("Session", {
   status: {                // status koneksi
     type: DataTypes.ENUM("connected", "reconnecting", "disconnected", "connecting"),
     defaultValue: "disconnected"
+  },
+  userId: {                // 🔑 foreign key ke User
+    type: DataTypes.INTEGER,
+    allowNull: false
   }
 });
 
