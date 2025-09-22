@@ -28,7 +28,7 @@ router.get("/connect", authRequired, async (req, res) => {
 router.get("/connect/list", authRequired, async (req, res) => {
   try {
     const sessions = await Session.findAll({
-      where: { userId: req.session.user.id },   // 🔑 filter per user
+      where: { userId: req.session.user.id },
       order: [["id", "DESC"]]
     });
     res.json(sessions);
@@ -56,7 +56,7 @@ router.post("/start", authRequired, async (req, res) => {
       label,
       mode: selectedMode,
       status: "connecting",
-      userId: req.session.user.id    // 🔑 simpan owner
+      userId: req.session.user.id
     });
 
     startSession(sessionId, io, selectedMode, label, req.session.user.id);
@@ -69,7 +69,7 @@ router.post("/start", authRequired, async (req, res) => {
 });
 
 /**
- * API: generate pairing code
+ * API: generate pairing code (TTL 30 detik)
  */
 router.post("/pairing", authRequired, async (req, res) => {
   try {
@@ -81,7 +81,7 @@ router.post("/pairing", authRequired, async (req, res) => {
     const io = req.app.get("io");
 
     let session = await Session.findOne({
-      where: { sessionId, userId: req.session.user.id }   // 🔑 filter per user
+      where: { sessionId, userId: req.session.user.id }
     });
 
     if (!session) {
@@ -90,7 +90,7 @@ router.post("/pairing", authRequired, async (req, res) => {
         label: sessionId,
         mode: "pairing",
         status: "connecting",
-        userId: req.session.user.id    // 🔑 simpan owner
+        userId: req.session.user.id
       });
       startSession(sessionId, io, "pairing", sessionId, req.session.user.id);
     }
@@ -99,8 +99,8 @@ router.post("/pairing", authRequired, async (req, res) => {
       let lastErr;
       for (let i = 1; i <= maxRetry; i++) {
         try {
-          const code = await getPairingCode(sessionId, phone);
-          return code;
+          const { code, expiredAt } = await getPairingCode(sessionId, phone);
+          return { code, expiredAt };
         } catch (err) {
           lastErr = err;
           await new Promise((r) => setTimeout(r, 2000));
@@ -109,8 +109,8 @@ router.post("/pairing", authRequired, async (req, res) => {
       throw lastErr;
     }
 
-    const code = await tryGenerate(3);
-    res.json({ success: true, code });
+    const { code, expiredAt } = await tryGenerate(3);
+    res.json({ success: true, code, expiredAt });
   } catch (e) {
     console.error("❌ /wa/pairing error:", e);
     res.status(400).json({ success: false, error: e.message });
@@ -143,7 +143,7 @@ router.delete("/:sessionId", authRequired, async (req, res) => {
     const { sessionId } = req.params;
 
     const session = await Session.findOne({
-      where: { sessionId, userId: req.session.user.id }   // 🔑 filter per user
+      where: { sessionId, userId: req.session.user.id }
     });
     if (!session) {
       return res.status(404).json({ success: false, error: "Session tidak ditemukan" });
@@ -154,7 +154,7 @@ router.delete("/:sessionId", authRequired, async (req, res) => {
       return res.status(500).json({ success: false, error: "Gagal hapus session" });
     }
 
-    await session.destroy();   // 🔑 hapus dari DB juga
+    await session.destroy();
     res.json({ success: true, msg: `Session ${sessionId} berhasil dihapus` });
   } catch (e) {
     console.error("❌ /wa/:sessionId error:", e);
