@@ -39,8 +39,13 @@ export const getTemplate = async (req, res) => {
 export const createTemplate = async (req, res) => {
   try {
     const { title, body, link, isActive } = req.body;
+
+    if (!title || !body) {
+      return res.status(400).json({ success: false, error: "Judul dan isi wajib diisi" });
+    }
+
     const tpl = await Template.create({
-      userId: req.session.user.id, // 🔑 simpan pemilik
+      userId: req.session.user.id,
       title,
       body,
       link,
@@ -49,6 +54,7 @@ export const createTemplate = async (req, res) => {
 
     res.json({ success: true, msg: "Template berhasil ditambahkan", template: tpl });
   } catch (e) {
+    console.error("Error createTemplate:", e);
     res.status(500).json({ success: false, error: e.message });
   }
 };
