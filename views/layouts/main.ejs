@@ -31,30 +31,14 @@
             <li class="nav-item"><a class="btn btn-primary" href="/auth/login">Login</a></li>
           <% } else { %>
             <li class="nav-item dropdown">
-  <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown">
-    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:32px;height:32px;">
-      <i class="fa fa-user"></i>
-    </div>
-    <span class="fw-semibold"><%= user.name %></span>
+  <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
+    <i class="fa fa-user me-2"></i> <%= user.name %>
   </a>
-  <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
+  <ul class="dropdown-menu dropdown-menu-end">
     <li>
-      <h6 class="dropdown-header text-muted">
-        <i class="fa fa-circle-user me-2 text-primary"></i>Profil
-      </h6>
-    </li>
-    <li>
-      <a class="dropdown-item d-flex align-items-center gap-2" href="#">
-        <i class="fa fa-envelope text-primary"></i>
-        <span><%= user.email %></span>
-      </a>
-    </li>
-    <li><hr class="dropdown-divider"></li>
-    <li>
-      <a id="logoutBtn" class="dropdown-item d-flex align-items-center gap-2 text-danger" href="#">
-        <i class="fa fa-right-from-bracket"></i>
-        <span>Logout</span>
-      </a>
+      <button id="logoutBtn" class="dropdown-item">
+        <i class="fa fa-right-from-bracket me-2"></i>Logout
+      </button>
     </li>
   </ul>
 </li>
