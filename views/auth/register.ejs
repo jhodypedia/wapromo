@@ -19,7 +19,7 @@
             <label class="form-label">Password</label>
             <input required name="password" type="password" class="form-control">
           </div>
-          <button type="submit" class="btn btn-primary w-100">Buat Akun</button>
+          <button class="btn btn-primary w-100">Buat Akun</button>
         </form>
       </div>
     </div>
@@ -33,42 +33,27 @@ document.addEventListener("DOMContentLoaded", () => {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const formData = {
-      name: form.name.value,
-      email: form.email.value,
-      password: form.password.value
-    };
+    const formData = Object.fromEntries(new FormData(form).entries());
 
     try {
       const res = await fetch("/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify(formData)
       });
-
       const json = await res.json();
 
       if (json.success) {
         Swal.fire({
           icon: "success",
           title: "Berhasil",
-          text: "Akun berhasil dibuat, silakan login"
-        }).then(() => {
-          window.location.href = "/auth/login";
-        });
+          text: json.msg
+        }).then(() => window.location.href = "/auth/login");
       } else {
-        Swal.fire({
-          icon: "error",
-          title: "Oops",
-          text: json.error || "Gagal membuat akun"
-        });
+        Swal.fire({ icon: "error", title: "Oops", text: json.error || json.msg });
       }
     } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Server bermasalah"
-      });
+      Swal.fire({ icon: "error", title: "Server error", text: err.message });
     }
   });
 });
