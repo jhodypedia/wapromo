@@ -1,3 +1,4 @@
+// services/waService.js
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason
@@ -7,14 +8,14 @@ import { Session } from "../models/index.js";
 import fs from "fs";
 import path from "path";
 
-const sessions = new Map(); // simpan socket aktif di memory
+const sessions = new Map(); // sessionId → socket aktif
 
 function delay(ms) {
   return new Promise((res) => setTimeout(res, ms));
 }
 
 /**
- * Mulai session baru
+ * Mulai session WA baru
  */
 export async function startSession(sessionId, io, mode = "qr", label = null, userId = null) {
   try {
@@ -37,14 +38,15 @@ export async function startSession(sessionId, io, mode = "qr", label = null, use
     sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
       console.log(`📡 connection.update: ${sessionId} →`, { connection, hasQr: !!qr });
 
+      // 🔹 Kalau mode QR
       if (mode === "qr" && qr) {
-        // kasih jeda biar stabil
         await delay(1000);
         io.emit("wa_qr", { sessionId, qr });
       }
 
-      if (connection === "open") {
-        console.log(`✅ Session ${sessionId} connected`);
+      // 🔹 Kalau mode Pairing, jangan auto-reconnect
+      if (mode === "pairing" && connection === "open") {
+        console.log(`✅ Pairing sukses: ${sessionId}`);
         await Session.upsert({ sessionId, label, status: "connected", mode, userId });
         io.emit("wa_status", { sessionId, status: "connected" });
       }
@@ -57,6 +59,13 @@ export async function startSession(sessionId, io, mode = "qr", label = null, use
 
         await Session.upsert({ sessionId, label, status: "disconnected", mode, userId });
         io.emit("wa_status", { sessionId, status: "disconnected" });
+
+        if (mode === "pairing") {
+          // ❌ Jangan langsung reconnect → biarkan kode pairing valid ±30s
+          console.log(`⏸️ Pairing mode: tahan reconnect (kode masih valid ±30s)`);
+          sessions.delete(sessionId);
+          return;
+        }
 
         if (shouldReconnect) {
           console.log(`🔄 Reconnecting ${sessionId}...`);
@@ -77,11 +86,12 @@ export async function startSession(sessionId, io, mode = "qr", label = null, use
  * Ambil socket aktif
  */
 export function getSession(sessionId) {
+  console.log(`🔎 getSession(${sessionId}) →`, sessions.has(sessionId));
   return sessions.get(sessionId) || null;
 }
 
 /**
- * Generate Pairing Code (TTL 30 detik)
+ * Generate Pairing Code (TTL ±30s)
  */
 export async function getPairingCode(sessionId, phoneNumber) {
   const sock = getSession(sessionId);
@@ -92,9 +102,8 @@ export async function getPairingCode(sessionId, phoneNumber) {
 
   try {
     const code = await sock.requestPairingCode(jid);
-    const expiredAt = Date.now() + 30 * 1000; // expired 30 detik
-    console.log(`✅ Pairing code untuk ${sessionId}: ${code} (expired 30s)`);
-    return { code, expiredAt };
+    console.log(`✅ Pairing code generated (${sessionId}): ${code}`);
+    return code; // berlaku ±30 detik
   } catch (err) {
     console.error(`❌ Gagal generate pairing code (${sessionId}):`, err);
     throw new Error("Gagal generate pairing code: " + err.message);
@@ -102,7 +111,7 @@ export async function getPairingCode(sessionId, phoneNumber) {
 }
 
 /**
- * Cek nomor WhatsApp valid/aktif
+ * Cek nomor WhatsApp
  */
 export async function checkWaNumber(sessionId, number) {
   const sock = getSession(sessionId);
@@ -112,11 +121,13 @@ export async function checkWaNumber(sessionId, number) {
   console.log(`📞 checkWaNumber(${sessionId}, ${jid})`);
 
   const res = await sock.onWhatsApp(jid);
+  console.log("📥 onWhatsApp response:", res);
+
   return !!res?.[0]?.exists;
 }
 
 /**
- * Hapus session (DB + memory + folder)
+ * Hapus session dari memory, DB, dan folder
  */
 export async function deleteSession(sessionId) {
   console.log(`🗑️ deleteSession: ${sessionId}`);
@@ -132,12 +143,12 @@ export async function deleteSession(sessionId) {
       sessions.delete(sessionId);
     }
 
-    // hapus dari DB
-    await Session.destroy({ where: { sessionId } });
+    const dbDel = await Session.destroy({ where: { sessionId } });
+    console.log(`🗄️ DB delete (${sessionId}):`, dbDel);
 
-    // hapus folder creds
     const folder = path.join(process.cwd(), "sessions", sessionId);
     if (fs.existsSync(folder)) {
+      console.log(`📂 Removing folder: ${folder}`);
       fs.rmSync(folder, { recursive: true, force: true });
     }
 
