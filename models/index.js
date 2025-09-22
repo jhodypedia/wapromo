@@ -5,15 +5,27 @@ import Session from "./Session.js";
 import Campaign from "./Campaign.js";
 import Target from "./Target.js";
 
-// Campaign milik User & Template
-Campaign.belongsTo(User, { foreignKey: "userId", as: "user" });
-Campaign.belongsTo(Template, { foreignKey: "templateId", as: "template" });
+// User punya banyak Template
+User.hasMany(Template, { foreignKey: "userId", as: "templates" });
+Template.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-// Campaign punya banyak Target
+// User punya banyak Session
+User.hasMany(Session, { foreignKey: "userId", as: "sessions" });
+Session.belongsTo(User, { foreignKey: "userId", as: "user" });
+
+// User punya banyak Campaign
+User.hasMany(Campaign, { foreignKey: "userId", as: "campaigns" });
+Campaign.belongsTo(User, { foreignKey: "userId", as: "user" });
+
+// Campaign → Template
+Campaign.belongsTo(Template, { foreignKey: "templateId", as: "template" });
+Template.hasMany(Campaign, { foreignKey: "templateId", as: "campaigns" });
+
+// Campaign → Target
 Campaign.hasMany(Target, { foreignKey: "campaignId", as: "targets" });
 Target.belongsTo(Campaign, { foreignKey: "campaignId", as: "campaign" });
 
-// Campaign terhubung ke Session
+// Campaign → Session
 Campaign.belongsTo(Session, { foreignKey: "sessionId", as: "session" });
 Session.hasMany(Campaign, { foreignKey: "sessionId", as: "campaigns" });
 
