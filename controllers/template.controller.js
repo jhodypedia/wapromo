@@ -1,5 +1,6 @@
 // controllers/template.controller.js
 import { Template } from "../models/index.js";
+import { Op } from "sequelize";
 
 /**
  * List semua template milik user
@@ -90,14 +91,35 @@ export const updateTemplate = async (req, res) => {
 export const deleteTemplate = async (req, res) => {
   try {
     const { id } = req.params;
-    const tpl = await Template.findOne({
-      where: { id, userId: req.session.user.id } // 🔑 filter per user
-    });
-    if (!tpl) return res.status(404).json({ success: false, error: "Template tidak ditemukan" });
 
+    // Cari template milik user
+    const tpl = await Template.findOne({
+      where: { id, userId: req.session.user.id }
+    });
+    if (!tpl) {
+      return res.status(404).json({ success: false, error: "Template tidak ditemukan" });
+    }
+
+    // 🔑 Cek apakah ada campaign yang masih aktif (status ≠ done)
+    const aktif = await Campaign.findOne({
+      where: {
+        templateId: id,
+        status: { [Op.not]: "done" }
+      }
+    });
+
+    if (aktif) {
+      return res.status(400).json({
+        success: false,
+        error: "Template tidak bisa dihapus karena masih dipakai campaign yang belum selesai"
+      });
+    }
+
+    // ✅ Kalau semua campaign done / tidak ada campaign
     await tpl.destroy();
     res.json({ success: true, msg: "Template berhasil dihapus" });
   } catch (e) {
+    console.error("❌ deleteTemplate error:", e);
     res.status(500).json({ success: false, error: e.message });
   }
 };
