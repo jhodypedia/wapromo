@@ -5,46 +5,36 @@ import Session from "./Session.js";
 import Campaign from "./Campaign.js";
 import Target from "./Target.js";
 
-// User → Template
-User.hasMany(Template, { foreignKey: "userId", as: "templates", onDelete: "CASCADE" });
+// === RELASI USER ===
+User.hasMany(Template, { foreignKey: "userId", as: "templates" });
 Template.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-// User → Session
-User.hasMany(Session, { foreignKey: "userId", as: "sessions", onDelete: "CASCADE" });
+User.hasMany(Session, { foreignKey: "userId", as: "sessions" });
 Session.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-// User → Campaign
-User.hasMany(Campaign, { foreignKey: "userId", as: "campaigns", onDelete: "CASCADE" });
+User.hasMany(Campaign, { foreignKey: "userId", as: "campaigns" });
 Campaign.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-// Campaign → Template (❗ penting: SET NULL biar campaign tetap ada walau template dihapus)
-Campaign.belongsTo(Template, { 
-  foreignKey: "templateId", 
-  as: "template", 
-  onDelete: "SET NULL", 
-  hooks: true 
+// === RELASI TEMPLATE ↔ CAMPAIGN ===
+Template.hasMany(Campaign, {
+  foreignKey: { name: "templateId", allowNull: false },
+  as: "campaigns",
+  onDelete: "RESTRICT",   // 🚫 tidak boleh auto delete
+  onUpdate: "CASCADE"
 });
-Template.hasMany(Campaign, { 
-  foreignKey: "templateId", 
-  as: "campaigns" 
+Campaign.belongsTo(Template, {
+  foreignKey: { name: "templateId", allowNull: false },
+  as: "template",
+  onDelete: "RESTRICT",   // 🚫 kalau template dipakai, larang hapus
+  onUpdate: "CASCADE"
 });
 
-// Campaign → Target (❗ ikut hapus kalau campaign dihapus)
-Campaign.hasMany(Target, { 
-  foreignKey: "campaignId", 
-  as: "targets", 
-  onDelete: "CASCADE", 
-  hooks: true 
-});
+// === RELASI CAMPAIGN ↔ TARGET ===
+Campaign.hasMany(Target, { foreignKey: "campaignId", as: "targets" });
 Target.belongsTo(Campaign, { foreignKey: "campaignId", as: "campaign" });
 
-// Campaign → Session
-Campaign.belongsTo(Session, { 
-  foreignKey: "sessionId", 
-  as: "session", 
-  onDelete: "SET NULL", 
-  hooks: true 
-});
+// === RELASI CAMPAIGN ↔ SESSION ===
 Session.hasMany(Campaign, { foreignKey: "sessionId", as: "campaigns" });
+Campaign.belongsTo(Session, { foreignKey: "sessionId", as: "session" });
 
 export { sequelize, User, Template, Session, Campaign, Target };
