@@ -88,11 +88,12 @@ export const updateTemplate = async (req, res) => {
 /**
  * Delete template
  */
+
 export const deleteTemplate = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Cari template milik user
+    // ✅ Cari template sesuai user
     const tpl = await Template.findOne({
       where: { id, userId: req.session.user.id }
     });
@@ -100,23 +101,23 @@ export const deleteTemplate = async (req, res) => {
       return res.status(404).json({ success: false, error: "Template tidak ditemukan" });
     }
 
-    // 🔑 Cek apakah ada campaign yang masih aktif (status ≠ done)
-    const aktif = await Campaign.findOne({
-      where: {
-        templateId: id,
-        status: { [Op.not]: "done" }
-      }
+    // ✅ Cek campaign yang pakai template ini
+    const campaigns = await Campaign.findAll({
+      where: { templateId: id }
     });
 
+    // Kalau masih ada campaign yang BELUM selesai
+    const aktif = campaigns.find(c => c.status !== "done");
     if (aktif) {
       return res.status(400).json({
         success: false,
-        error: "Template tidak bisa dihapus karena masih dipakai campaign yang belum selesai"
+        error: `Template dipakai oleh campaign "${aktif.name}" (status: ${aktif.status}). Hapus/ganti campaign dulu.`
       });
     }
 
-    // ✅ Kalau semua campaign done / tidak ada campaign
+    // ✅ Kalau aman → hapus
     await tpl.destroy();
+
     res.json({ success: true, msg: "Template berhasil dihapus" });
   } catch (e) {
     console.error("❌ deleteTemplate error:", e);
