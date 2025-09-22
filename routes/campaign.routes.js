@@ -128,16 +128,13 @@ router.delete("/:id", authRequired, async (req, res) => {
   }
 });
 
-/**
- * Jalankan campaign
- */
 router.post("/:id/run", authRequired, async (req, res) => {
   try {
     const { id } = req.params;
     const io = req.app.get("io");
 
     const cp = await Campaign.findOne({
-      where: { id, userId: req.session.user.id }, // 🔑 filter user
+      where: { id, userId: req.session.user.id },
       include: [{ model: Template, as: "template" }, { model: Session, as: "session" }]
     });
     if (!cp) return res.status(404).json({ success: false, error: "Campaign tidak ditemukan" });
@@ -145,8 +142,10 @@ router.post("/:id/run", authRequired, async (req, res) => {
     const sock = getSession(cp.session.sessionId);
     if (!sock) return res.status(400).json({ success: false, error: "Session WA belum aktif" });
 
+    // 🔑 ambil target via join campaign
     const targets = await Target.findAll({
-      where: { campaignId: cp.id, userId: req.session.user.id, status: "valid" },
+      include: [{ model: Campaign, as: "campaign", where: { userId: req.session.user.id } }],
+      where: { campaignId: cp.id, status: "valid" },
       order: [["id", "ASC"]]
     });
 
@@ -158,7 +157,7 @@ router.post("/:id/run", authRequired, async (req, res) => {
 
     (async () => {
       for (const t of targets) {
-        if (cp.status === "stopped") break; // 🔑 jika dihentikan
+        if (cp.status === "stopped") break;
         try {
           await sock.sendMessage(
             t.number.replace(/\D/g, "") + "@s.whatsapp.net",
@@ -166,12 +165,12 @@ router.post("/:id/run", authRequired, async (req, res) => {
           );
           t.status = "success";
           await t.save();
-          io.emit("campaign_progress", { campaignId: cp.id, number: t.number, status: "success" });
+          io.emit("campaign_progress", { campaignId: cp.id, targetId: t.id, status: "success" });
         } catch (e) {
           t.status = "error";
           t.error = String(e?.message || e);
           await t.save();
-          io.emit("campaign_progress", { campaignId: cp.id, number: t.number, status: "error" });
+          io.emit("campaign_progress", { campaignId: cp.id, targetId: t.id, status: "error" });
         }
         await new Promise((r) => setTimeout(r, rand(cp.speedMinMs, cp.speedMaxMs)));
       }
