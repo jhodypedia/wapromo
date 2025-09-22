@@ -26,7 +26,12 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   line-height: 1.6;
+
+  /* ✅ Flex layout supaya footer fix */
+  display: flex;
+  flex-direction: column;
 }
+main { flex: 1; } /* dorong footer ke bawah */
 
 /* NAVBAR */
 .navbar {
@@ -311,6 +316,17 @@ body {
 }
 .toast-title { font-weight: 600; }
 .toast-message { margin-top: 2px; }
+
+/* FOOTER */
+footer {
+  background: var(--card);
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+  font-size: .85rem;
+  color: var(--muted);
+  padding: 1rem 0;
+  margin-top: auto; /* ✅ biar selalu di bawah */
+}
 
 /* ANIMATIONS */
 @keyframes fadeIn {
