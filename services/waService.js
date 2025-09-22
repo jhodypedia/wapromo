@@ -7,18 +7,18 @@ import { Session } from "../models/index.js";
 import fs from "fs";
 import path from "path";
 
-const sessions = new Map(); // sessionId → socket aktif
+const sessions = new Map(); // simpan socket aktif di memory
 
 function delay(ms) {
   return new Promise((res) => setTimeout(res, ms));
 }
 
 /**
- * Mulai session WA baru
+ * Mulai session baru
  */
-export async function startSession(sessionId, io, mode = "qr", label = null, userId) {
+export async function startSession(sessionId, io, mode = "qr", label = null, userId = null) {
   try {
-    console.log(`🚀 startSession: ${sessionId} (mode=${mode}, user=${userId})`);
+    console.log(`🚀 startSession: ${sessionId} (mode=${mode})`);
 
     const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${sessionId}`);
 
@@ -38,7 +38,8 @@ export async function startSession(sessionId, io, mode = "qr", label = null, use
       console.log(`📡 connection.update: ${sessionId} →`, { connection, hasQr: !!qr });
 
       if (mode === "qr" && qr) {
-        await delay(6000);
+        // kasih jeda biar stabil
+        await delay(1000);
         io.emit("wa_qr", { sessionId, qr });
       }
 
@@ -76,12 +77,11 @@ export async function startSession(sessionId, io, mode = "qr", label = null, use
  * Ambil socket aktif
  */
 export function getSession(sessionId) {
-  console.log(`🔎 getSession(${sessionId}) →`, sessions.has(sessionId));
   return sessions.get(sessionId) || null;
 }
 
 /**
- * Generate Pairing Code
+ * Generate Pairing Code (TTL 30 detik)
  */
 export async function getPairingCode(sessionId, phoneNumber) {
   const sock = getSession(sessionId);
@@ -90,12 +90,11 @@ export async function getPairingCode(sessionId, phoneNumber) {
   const jid = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
   console.log(`🔑 getPairingCode(${sessionId}, ${jid})`);
 
-  await delay(6000);
-
   try {
     const code = await sock.requestPairingCode(jid);
-    console.log(`✅ Pairing code generated for ${sessionId}:`, code);
-    return code;
+    const expiredAt = Date.now() + 30 * 1000; // expired 30 detik
+    console.log(`✅ Pairing code untuk ${sessionId}: ${code} (expired 30s)`);
+    return { code, expiredAt };
   } catch (err) {
     console.error(`❌ Gagal generate pairing code (${sessionId}):`, err);
     throw new Error("Gagal generate pairing code: " + err.message);
@@ -103,7 +102,7 @@ export async function getPairingCode(sessionId, phoneNumber) {
 }
 
 /**
- * Cek nomor WhatsApp
+ * Cek nomor WhatsApp valid/aktif
  */
 export async function checkWaNumber(sessionId, number) {
   const sock = getSession(sessionId);
@@ -113,13 +112,11 @@ export async function checkWaNumber(sessionId, number) {
   console.log(`📞 checkWaNumber(${sessionId}, ${jid})`);
 
   const res = await sock.onWhatsApp(jid);
-  console.log("📥 onWhatsApp response:", res);
-
   return !!res?.[0]?.exists;
 }
 
 /**
- * Hapus session dari memory, DB, dan folder
+ * Hapus session (DB + memory + folder)
  */
 export async function deleteSession(sessionId) {
   console.log(`🗑️ deleteSession: ${sessionId}`);
@@ -135,15 +132,13 @@ export async function deleteSession(sessionId) {
       sessions.delete(sessionId);
     }
 
-    const dbDel = await Session.destroy({ where: { sessionId } });
-    console.log(`🗄️ DB delete (${sessionId}):`, dbDel);
+    // hapus dari DB
+    await Session.destroy({ where: { sessionId } });
 
+    // hapus folder creds
     const folder = path.join(process.cwd(), "sessions", sessionId);
     if (fs.existsSync(folder)) {
-      console.log(`📂 Removing folder: ${folder}`);
       fs.rmSync(folder, { recursive: true, force: true });
-    } else {
-      console.log(`ℹ️ Folder not found for ${sessionId}: ${folder}`);
     }
 
     console.log(`✅ Session ${sessionId} fully deleted`);
