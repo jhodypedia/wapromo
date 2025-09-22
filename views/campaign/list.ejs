@@ -1,8 +1,17 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h4 class="mb-0"><i class="fa fa-bullhorn text-primary me-2"></i>Campaigns</h4>
-  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#campaignModal">
-    <i class="fa fa-plus me-2"></i>Campaign Baru
-  </button>
+  <div class="d-flex gap-2">
+    <!-- 🔹 Filter Session -->
+    <select id="sessionFilter" class="form-select form-select-sm">
+      <option value="">Semua Session</option>
+      <% sessions.forEach(s => { %>
+        <option value="<%= s.id %>"><%= s.label || s.sessionId %></option>
+      <% }) %>
+    </select>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#campaignModal">
+      <i class="fa fa-plus me-2"></i>Campaign Baru
+    </button>
+  </div>
 </div>
 
 <div class="card shadow-sm">
@@ -13,8 +22,9 @@
           <th style="width:40px">#</th>
           <th>Nama</th>
           <th>Template</th>
+          <th>Session</th> <!-- 🔹 Kolom session -->
           <th>Status</th>
-          <th style="width:180px">Aksi</th>
+          <th style="width:200px">Aksi</th>
         </tr>
       </thead>
       <tbody id="campaignTableBody">
@@ -110,13 +120,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  async function loadCampaigns() {
+  async function loadCampaigns(filterSessionId = "") {
     try {
       const res = await fetch("/campaigns/list");
       const data = await res.json();
       table.clear();
 
-      data.forEach((c, i) => {
+      const filtered = filterSessionId
+        ? data.filter(c => String(c.sessionId) === String(filterSessionId))
+        : data;
+
+      filtered.forEach((c, i) => {
         const statusBadge = `<span class="badge rounded-pill bg-${
           c.status==="done" ? "success" :
           c.status==="running" ? "warning" :
@@ -138,6 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
           i+1,
           `<span class="fw-semibold">${c.name}</span>`,
           c.template ? c.template.title : "-",
+          c.session ? (c.session.label || c.session.sessionId) : "-",
           statusBadge,
           `<div class="d-flex gap-1">${actions}</div>`
         ]);
@@ -158,7 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const json = await res.json();
       if (json.success) {
         Swal.fire("Berhasil", "Campaign dijalankan", "success");
-        loadCampaigns();
+        loadCampaigns(document.getElementById("sessionFilter").value);
       } else {
         Swal.fire("Error", json.error || "Gagal menjalankan campaign", "error");
       }
@@ -181,7 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const json = await res.json();
       if (json.success) {
         Swal.fire("Berhasil", "Campaign dihentikan", "success");
-        loadCampaigns();
+        loadCampaigns(document.getElementById("sessionFilter").value);
       } else {
         Swal.fire("Error", json.error || "Gagal stop campaign", "error");
       }
@@ -204,7 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const json = await res.json();
       if (json.success) {
         Swal.fire("Berhasil", "Campaign dihapus", "success");
-        loadCampaigns();
+        loadCampaigns(document.getElementById("sessionFilter").value);
       } else {
         Swal.fire("Error", json.error || "Gagal menghapus", "error");
       }
@@ -221,67 +236,30 @@ document.addEventListener("DOMContentLoaded", () => {
       const json = await res.json();
       if (json.success) {
         const cp = json.campaign;
-        let processed = cp.targets.filter(t=>["success","error"].includes(t.status)).length;
-        const total = cp.targets.length;
-
         body.innerHTML = `
           <h6 class="fw-bold">${cp.name}</h6>
           <p><b>Status:</b> ${cp.status}</p>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Progress</label>
-            <div class="progress" style="height:14px;">
-              <div id="campaignProgressBar" class="progress-bar bg-primary" style="width:${Math.round((processed/total)*100)}%">
-                ${Math.round((processed/total)*100)}%
-              </div>
-            </div>
-            <small id="campaignProgressText" class="text-muted">${processed} / ${total} dikirim</small>
-          </div>
+          <p><b>Template:</b> ${cp.template ? cp.template.title : "-"}</p>
+          <p><b>Session:</b> ${cp.session ? (cp.session.label || cp.session.sessionId) : "-"}</p>
           <hr>
           <h6 class="fw-bold">Target</h6>
           <ul class="list-group small">
             ${cp.targets.map(t=>`
-              <li class="list-group-item d-flex justify-content-between align-items-center" id="target-${t.id}">
+              <li class="list-group-item d-flex justify-content-between align-items-center">
                 <span>${t.number}</span>
-                <span class="d-flex align-items-center gap-2">
-                  <div class="progress" style="width:80px;height:8px;display:none">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:100%"></div>
-                  </div>
-                  <span class="badge bg-${t.status==="success"?"success":t.status==="error"?"danger":t.status==="valid"?"info":"secondary"}">${t.status}</span>
-                </span>
+                <span class="badge bg-${t.status==="success"?"success":t.status==="error"?"danger":t.status==="valid"?"info":"secondary"}">${t.status}</span>
               </li>`).join("")}
           </ul>`;
-
-        // socket update
-        const socket = io();
-        socket.off("campaign_progress").on("campaign_progress", ({ campaignId, targetId, status }) => {
-          if (campaignId !== cp.id) return;
-          const li = document.getElementById(`target-${targetId}`);
-          if (!li) return;
-
-          const progress = li.querySelector(".progress");
-          const badge = li.querySelector(".badge");
-
-          if (status === "processing") {
-            document.querySelectorAll("#campaignDetailBody .progress").forEach(p => p.style.display = "none");
-            progress.style.display = "block";
-            badge.textContent = "processing";
-            badge.className = "badge bg-warning";
-          } else {
-            progress.style.display = "none";
-            badge.textContent = status;
-            badge.className = "badge bg-" + (status === "success" ? "success" : "danger");
-            processed++;
-            const percent = Math.round((processed/total)*100);
-            document.getElementById("campaignProgressBar").style.width = percent + "%";
-            document.getElementById("campaignProgressBar").textContent = percent + "%";
-            document.getElementById("campaignProgressText").textContent = `${processed} / ${total} dikirim`;
-          }
-        });
       } else {
         body.innerHTML = `<div class="text-danger">Gagal memuat detail: ${json.error}</div>`;
       }
     });
   }
+
+  // 🔹 Filter session
+  document.getElementById("sessionFilter").addEventListener("change", function() {
+    loadCampaigns(this.value);
+  });
 
   // Create campaign
   const form = document.getElementById("campaignForm");
@@ -305,7 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
       Swal.fire("Berhasil", "Campaign berhasil dibuat", "success");
       bootstrap.Modal.getInstance(document.getElementById("campaignModal"))?.hide();
       form.reset();
-      loadCampaigns();
+      loadCampaigns(document.getElementById("sessionFilter").value);
     }else{
       Swal.fire("Error", json.error || "Gagal membuat campaign", "error");
     }
