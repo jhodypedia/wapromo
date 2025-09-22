@@ -16,9 +16,9 @@ function delay(ms) {
 /**
  * Mulai session WA baru
  */
-export async function startSession(sessionId, io, mode = "qr", label = null) {
+export async function startSession(sessionId, io, mode = "qr", label = null, userId) {
   try {
-    console.log(`🚀 startSession: ${sessionId} (mode=${mode})`);
+    console.log(`🚀 startSession: ${sessionId} (mode=${mode}, user=${userId})`);
 
     const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${sessionId}`);
 
@@ -29,7 +29,7 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
 
     sessions.set(sessionId, sock);
 
-    await Session.upsert({ sessionId, label, status: "connecting", mode });
+    await Session.upsert({ sessionId, label, status: "connecting", mode, userId });
     io.emit("wa_status", { sessionId, status: "connecting" });
 
     sock.ev.on("creds.update", saveCreds);
@@ -38,12 +38,13 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
       console.log(`📡 connection.update: ${sessionId} →`, { connection, hasQr: !!qr });
 
       if (mode === "qr" && qr) {
+        await delay(6000);
         io.emit("wa_qr", { sessionId, qr });
       }
 
       if (connection === "open") {
         console.log(`✅ Session ${sessionId} connected`);
-        await Session.upsert({ sessionId, label, status: "connected", mode });
+        await Session.upsert({ sessionId, label, status: "connected", mode, userId });
         io.emit("wa_status", { sessionId, status: "connected" });
       }
 
@@ -53,14 +54,14 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
 
         console.log(`⚠️ Session ${sessionId} closed (code=${code}, reconnect=${shouldReconnect})`);
 
-        await Session.upsert({ sessionId, label, status: "disconnected", mode });
+        await Session.upsert({ sessionId, label, status: "disconnected", mode, userId });
         io.emit("wa_status", { sessionId, status: "disconnected" });
 
         if (shouldReconnect) {
           console.log(`🔄 Reconnecting ${sessionId}...`);
-          await Session.upsert({ sessionId, label, status: "reconnecting", mode });
+          await Session.upsert({ sessionId, label, status: "reconnecting", mode, userId });
           io.emit("wa_status", { sessionId, status: "reconnecting" });
-          setTimeout(() => startSession(sessionId, io, mode, label), 3000);
+          setTimeout(() => startSession(sessionId, io, mode, label, userId), 3000);
         } else {
           sessions.delete(sessionId);
         }
@@ -75,26 +76,25 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
  * Ambil socket aktif
  */
 export function getSession(sessionId) {
+  console.log(`🔎 getSession(${sessionId}) →`, sessions.has(sessionId));
   return sessions.get(sessionId) || null;
 }
 
 /**
  * Generate Pairing Code
  */
-export async function getPairingCode(sessionId, phoneNumber, io) {
+export async function getPairingCode(sessionId, phoneNumber) {
   const sock = getSession(sessionId);
   if (!sock) throw new Error("Session belum aktif");
 
   const jid = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
   console.log(`🔑 getPairingCode(${sessionId}, ${jid})`);
 
+  await delay(6000);
+
   try {
     const code = await sock.requestPairingCode(jid);
     console.log(`✅ Pairing code generated for ${sessionId}:`, code);
-
-    // 🔹 kirim ke frontend realtime
-    io.emit("wa_pairing", { sessionId, code });
-
     return code;
   } catch (err) {
     console.error(`❌ Gagal generate pairing code (${sessionId}):`, err);
@@ -110,7 +110,10 @@ export async function checkWaNumber(sessionId, number) {
   if (!sock) throw new Error("Session belum aktif");
 
   const jid = number.replace(/\D/g, "") + "@s.whatsapp.net";
+  console.log(`📞 checkWaNumber(${sessionId}, ${jid})`);
+
   const res = await sock.onWhatsApp(jid);
+  console.log("📥 onWhatsApp response:", res);
 
   return !!res?.[0]?.exists;
 }
@@ -124,6 +127,7 @@ export async function deleteSession(sessionId) {
     const sock = sessions.get(sessionId);
     if (sock) {
       try {
+        console.log(`📤 Logout socket: ${sessionId}`);
         await sock.logout();
       } catch (logoutErr) {
         console.error(`⚠️ Logout error (${sessionId}):`, logoutErr.message);
@@ -136,7 +140,10 @@ export async function deleteSession(sessionId) {
 
     const folder = path.join(process.cwd(), "sessions", sessionId);
     if (fs.existsSync(folder)) {
+      console.log(`📂 Removing folder: ${folder}`);
       fs.rmSync(folder, { recursive: true, force: true });
+    } else {
+      console.log(`ℹ️ Folder not found for ${sessionId}: ${folder}`);
     }
 
     console.log(`✅ Session ${sessionId} fully deleted`);
@@ -156,7 +163,8 @@ export async function initSessions(io) {
   for (const s of dbSessions) {
     console.log(`→ Found session: ${s.sessionId}, status=${s.status}`);
     if (s.status === "connected" || s.status === "reconnecting") {
-      await startSession(s.sessionId, io, s.mode || "qr", s.label);
+      console.log(`🔄 Restoring ${s.sessionId} (mode=${s.mode || "qr"})`);
+      await startSession(s.sessionId, io, s.mode || "qr", s.label, s.userId);
     }
   }
 }
