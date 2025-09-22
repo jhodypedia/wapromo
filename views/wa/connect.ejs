@@ -204,7 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 🔹 Socket listener
+  // 🔹 Socket listener QR
   socket.on("wa_qr", ({ sessionId, qr }) => {
     const modal = document.getElementById("qrModal");
     if (modal.getAttribute("data-session") === sessionId) {
@@ -214,10 +214,23 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("qrNote").innerText = "Scan QR ini di WhatsApp → Perangkat Tertaut";
     }
   });
+
+  // 🔹 Socket listener status
   socket.on("wa_status", ({ sessionId, status }) => {
     loadSessions();
     if (status === "connected") Swal.fire("Connected", `Session ${sessionId} tersambung`, "success");
     if (status === "disconnected") Swal.fire("Disconnected", `Session ${sessionId} terputus`, "error");
+  });
+
+  // 🔹 Socket listener pairing code
+  socket.on("wa_pairing", ({ sessionId, code }) => {
+    const modal = document.getElementById("qrModal");
+    if (modal.getAttribute("data-session") === sessionId) {
+      document.getElementById("qrContainer").innerHTML = `
+        <div class="p-3 bg-light rounded fw-bold text-primary fs-4">${code}</div>
+      `;
+      document.getElementById("qrNote").innerText = "Masukkan kode di WhatsApp → Perangkat Tertaut";
+    }
   });
 
   // 🔹 Load awal
