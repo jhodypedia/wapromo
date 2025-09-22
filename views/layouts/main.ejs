@@ -74,17 +74,14 @@
 
   <!-- ✅ Script kamu terakhir -->
   <script src="/js/main.js"></script>
-
-  <script>
+<script>
 document.addEventListener("DOMContentLoaded", () => {
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
-    logoutBtn.addEventListener("click", async (e) => {
-      e.preventDefault();
-
+    logoutBtn.addEventListener("click", async () => {
       const confirm = await Swal.fire({
-        title: "Yakin logout?",
-        text: "Sesi Anda akan diakhiri.",
+        title: "Logout?",
+        text: "Apakah Anda yakin ingin keluar?",
         icon: "warning",
         showCancelButton: true,
         confirmButtonText: "Ya, logout",
@@ -94,13 +91,13 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!confirm.isConfirmed) return;
 
       try {
-        const res = await fetch("/auth/logout", { method: "GET" });
+        const res = await fetch("/auth/logout", { method: "GET", headers: { "Accept": "application/json" } });
         const json = await res.json();
-
         if (json.success) {
           Swal.fire({
             icon: "success",
-            title: "Logout berhasil",
+            title: "Berhasil Logout",
+            text: "Anda akan diarahkan ke halaman login...",
             timer: 1500,
             showConfirmButton: false
           }).then(() => {
