@@ -38,7 +38,6 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
       console.log(`📡 connection.update: ${sessionId} →`, { connection, hasQr: !!qr });
 
       if (mode === "qr" && qr) {
-        await delay(6000);
         io.emit("wa_qr", { sessionId, qr });
       }
 
@@ -76,25 +75,26 @@ export async function startSession(sessionId, io, mode = "qr", label = null) {
  * Ambil socket aktif
  */
 export function getSession(sessionId) {
-  console.log(`🔎 getSession(${sessionId}) →`, sessions.has(sessionId));
   return sessions.get(sessionId) || null;
 }
 
 /**
  * Generate Pairing Code
  */
-export async function getPairingCode(sessionId, phoneNumber) {
+export async function getPairingCode(sessionId, phoneNumber, io) {
   const sock = getSession(sessionId);
   if (!sock) throw new Error("Session belum aktif");
 
   const jid = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
   console.log(`🔑 getPairingCode(${sessionId}, ${jid})`);
 
-  await delay(6000);
-
   try {
     const code = await sock.requestPairingCode(jid);
     console.log(`✅ Pairing code generated for ${sessionId}:`, code);
+
+    // 🔹 kirim ke frontend realtime
+    io.emit("wa_pairing", { sessionId, code });
+
     return code;
   } catch (err) {
     console.error(`❌ Gagal generate pairing code (${sessionId}):`, err);
@@ -110,10 +110,7 @@ export async function checkWaNumber(sessionId, number) {
   if (!sock) throw new Error("Session belum aktif");
 
   const jid = number.replace(/\D/g, "") + "@s.whatsapp.net";
-  console.log(`📞 checkWaNumber(${sessionId}, ${jid})`);
-
   const res = await sock.onWhatsApp(jid);
-  console.log("📥 onWhatsApp response:", res);
 
   return !!res?.[0]?.exists;
 }
@@ -127,7 +124,6 @@ export async function deleteSession(sessionId) {
     const sock = sessions.get(sessionId);
     if (sock) {
       try {
-        console.log(`📤 Logout socket: ${sessionId}`);
         await sock.logout();
       } catch (logoutErr) {
         console.error(`⚠️ Logout error (${sessionId}):`, logoutErr.message);
@@ -140,10 +136,7 @@ export async function deleteSession(sessionId) {
 
     const folder = path.join(process.cwd(), "sessions", sessionId);
     if (fs.existsSync(folder)) {
-      console.log(`📂 Removing folder: ${folder}`);
       fs.rmSync(folder, { recursive: true, force: true });
-    } else {
-      console.log(`ℹ️ Folder not found for ${sessionId}: ${folder}`);
     }
 
     console.log(`✅ Session ${sessionId} fully deleted`);
@@ -163,7 +156,6 @@ export async function initSessions(io) {
   for (const s of dbSessions) {
     console.log(`→ Found session: ${s.sessionId}, status=${s.status}`);
     if (s.status === "connected" || s.status === "reconnecting") {
-      console.log(`🔄 Restoring ${s.sessionId} (mode=${s.mode || "qr"})`);
       await startSession(s.sessionId, io, s.mode || "qr", s.label);
     }
   }
