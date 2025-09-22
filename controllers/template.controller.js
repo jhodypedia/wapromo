@@ -2,11 +2,14 @@
 import { Template } from "../models/index.js";
 
 /**
- * List semua template (untuk render EJS)
+ * List semua template milik user
  */
 export const listTemplates = async (req, res) => {
   try {
-    const templates = await Template.findAll({ order: [["id", "DESC"]] });
+    const templates = await Template.findAll({
+      where: { userId: req.session.user.id }, // 🔑 filter per user
+      order: [["id", "DESC"]]
+    });
     res.render("templates/list", { templates });
   } catch (e) {
     res.status(500).send(e.message);
@@ -14,12 +17,14 @@ export const listTemplates = async (req, res) => {
 };
 
 /**
- * Ambil detail template (AJAX GET /templates/:id)
+ * Get detail template (AJAX)
  */
 export const getTemplate = async (req, res) => {
   try {
     const { id } = req.params;
-    const tpl = await Template.findByPk(id);
+    const tpl = await Template.findOne({
+      where: { id, userId: req.session.user.id } // 🔑 filter per user
+    });
     if (!tpl) return res.status(404).json({ success: false, error: "Template tidak ditemukan" });
 
     res.json({ success: true, template: tpl });
@@ -29,12 +34,13 @@ export const getTemplate = async (req, res) => {
 };
 
 /**
- * Create template (AJAX POST /templates)
+ * Create template
  */
 export const createTemplate = async (req, res) => {
   try {
     const { title, body, link, isActive } = req.body;
     const tpl = await Template.create({
+      userId: req.session.user.id, // 🔑 simpan pemilik
       title,
       body,
       link,
@@ -48,14 +54,16 @@ export const createTemplate = async (req, res) => {
 };
 
 /**
- * Update template (AJAX PUT /templates/:id)
+ * Update template
  */
 export const updateTemplate = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, body, link, isActive } = req.body;
 
-    const tpl = await Template.findByPk(id);
+    const tpl = await Template.findOne({
+      where: { id, userId: req.session.user.id } // 🔑 filter per user
+    });
     if (!tpl) return res.status(404).json({ success: false, error: "Template tidak ditemukan" });
 
     tpl.title = title;
@@ -71,12 +79,14 @@ export const updateTemplate = async (req, res) => {
 };
 
 /**
- * Delete template (AJAX DELETE /templates/:id)
+ * Delete template
  */
 export const deleteTemplate = async (req, res) => {
   try {
     const { id } = req.params;
-    const tpl = await Template.findByPk(id);
+    const tpl = await Template.findOne({
+      where: { id, userId: req.session.user.id } // 🔑 filter per user
+    });
     if (!tpl) return res.status(404).json({ success: false, error: "Template tidak ditemukan" });
 
     await tpl.destroy();
