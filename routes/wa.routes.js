@@ -1,4 +1,3 @@
-// routes/wa.routes.js
 import express from "express";
 import { authRequired } from "../middlewares/auth.js";
 import {
@@ -16,7 +15,7 @@ const router = express.Router();
  */
 router.get("/connect", authRequired, async (req, res) => {
   const sessions = await Session.findAll({
-    where: { userId: req.session.user.id },   // 🔑 filter per user
+    where: { userId: req.session.user.id },
     order: [["id", "DESC"]]
   });
   res.render("wa/connect", { sessions });
@@ -28,12 +27,11 @@ router.get("/connect", authRequired, async (req, res) => {
 router.get("/connect/list", authRequired, async (req, res) => {
   try {
     const sessions = await Session.findAll({
-      where: { userId: req.session.user.id },   // 🔑 filter per user
+      where: { userId: req.session.user.id },
       order: [["id", "DESC"]]
     });
     res.json(sessions);
   } catch (e) {
-    console.error("❌ /wa/connect/list error:", e);
     res.status(500).json({ success: false, error: e.message });
   }
 });
@@ -56,14 +54,13 @@ router.post("/start", authRequired, async (req, res) => {
       label,
       mode: selectedMode,
       status: "connecting",
-      userId: req.session.user.id    // 🔑 simpan owner
+      userId: req.session.user.id
     });
 
     startSession(sessionId, io, selectedMode, label);
 
     res.json({ success: true, msg: `Session ${sessionId} dimulai (${selectedMode})` });
   } catch (e) {
-    console.error("❌ /wa/start error:", e);
     res.status(500).json({ success: false, error: e.message });
   }
 });
@@ -81,7 +78,7 @@ router.post("/pairing", authRequired, async (req, res) => {
     const io = req.app.get("io");
 
     let session = await Session.findOne({
-      where: { sessionId, userId: req.session.user.id }   // 🔑 filter per user
+      where: { sessionId, userId: req.session.user.id }
     });
 
     if (!session) {
@@ -90,29 +87,14 @@ router.post("/pairing", authRequired, async (req, res) => {
         label: sessionId,
         mode: "pairing",
         status: "connecting",
-        userId: req.session.user.id    // 🔑 simpan owner
+        userId: req.session.user.id
       });
       startSession(sessionId, io, "pairing", sessionId);
     }
 
-    async function tryGenerate(maxRetry = 3) {
-      let lastErr;
-      for (let i = 1; i <= maxRetry; i++) {
-        try {
-          const code = await getPairingCode(sessionId, phone);
-          return code;
-        } catch (err) {
-          lastErr = err;
-          await new Promise((r) => setTimeout(r, 2000));
-        }
-      }
-      throw lastErr;
-    }
-
-    const code = await tryGenerate(3);
+    const code = await getPairingCode(sessionId, phone, io);
     res.json({ success: true, code });
   } catch (e) {
-    console.error("❌ /wa/pairing error:", e);
     res.status(400).json({ success: false, error: e.message });
   }
 });
@@ -130,7 +112,6 @@ router.post("/check", authRequired, async (req, res) => {
     const exists = await checkWaNumber(sessionId, number);
     res.json({ success: true, number, exists });
   } catch (e) {
-    console.error("❌ /wa/check error:", e);
     res.status(400).json({ success: false, error: e.message });
   }
 });
@@ -143,7 +124,7 @@ router.delete("/:sessionId", authRequired, async (req, res) => {
     const { sessionId } = req.params;
 
     const session = await Session.findOne({
-      where: { sessionId, userId: req.session.user.id }   // 🔑 filter per user
+      where: { sessionId, userId: req.session.user.id }
     });
     if (!session) {
       return res.status(404).json({ success: false, error: "Session tidak ditemukan" });
@@ -154,10 +135,9 @@ router.delete("/:sessionId", authRequired, async (req, res) => {
       return res.status(500).json({ success: false, error: "Gagal hapus session" });
     }
 
-    await session.destroy();   // 🔑 hapus dari DB juga
+    await session.destroy();
     res.json({ success: true, msg: `Session ${sessionId} berhasil dihapus` });
   } catch (e) {
-    console.error("❌ /wa/:sessionId error:", e);
     res.status(500).json({ success: false, error: e.message });
   }
 });
